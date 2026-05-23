@@ -1284,12 +1284,15 @@ function drawLayer(item){
     plannedItemsById[id] = item;
   }
 
-  layer.bindPopup(makePopupHtml(item.row, isPlanned));
-  layer.on("click", function(){
-    map.fitBounds(layer.getBounds(), {
-      padding:[40, 40],
+  if(!IS_PARENT_PAGE){
+    layer.bindPopup(makePopupHtml(item.row, isPlanned));
+
+    layer.on("click", function(){
+      map.fitBounds(layer.getBounds(), {
+        padding:[40, 40],
+      });
     });
-  });
+  }
 }
 
 map.on("draw:created", async function(e){
