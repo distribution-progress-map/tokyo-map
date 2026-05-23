@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>配布エリア共有マップ</title>
+<title>東京　配布エリア共有マップ</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
@@ -1267,6 +1267,8 @@ fetch(
 // =========================
 function drawLayer(item){
   const layer = L.geoJSON(item.geo, {
+    interactive: !IS_PARENT_PAGE,
+
     style:{
       color:getColor(item.row["種類"]),
       fillColor:getColor(item.row["種類"]),
@@ -1285,13 +1287,15 @@ function drawLayer(item){
   }
 
   if(!IS_PARENT_PAGE){
-    layer.bindPopup(makePopupHtml(item.row, isPlanned));
+    if(!IS_PARENT_PAGE){
+      layer.bindPopup(makePopupHtml(item.row, isPlanned));
 
-    layer.on("click", function(){
-      map.fitBounds(layer.getBounds(), {
-        padding:[40, 40],
+      layer.on("click", function(){
+        map.fitBounds(layer.getBounds(), {
+          padding:[40, 40],
+        });
       });
-    });
+    }
   }
 }
 
