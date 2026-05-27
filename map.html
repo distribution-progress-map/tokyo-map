@@ -50,6 +50,72 @@ body{
   font-weight:bold;
 }
 
+.confirm-overlay{
+  position:fixed;
+  inset:0;
+
+  background:rgba(0,0,0,0.35);
+
+  z-index:99999;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.confirm-box{
+  width:min(320px, 85vw);
+
+  background:white;
+
+  border-radius:14px;
+
+  padding:18px 16px;
+
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+
+  text-align:center;
+}
+
+.confirm-message{
+  font-size:16px;
+  font-weight:bold;
+
+  line-height:1.6;
+
+  margin-bottom:18px;
+
+  color:#333;
+}
+
+.confirm-buttons{
+  display:flex;
+  gap:10px;
+}
+
+.confirm-buttons button{
+  flex:1;
+
+  padding:10px 0;
+
+  border:none;
+
+  border-radius:8px;
+
+  font-size:15px;
+  font-weight:bold;
+}
+
+#confirmOkButton{
+  background:#ff9800;
+  color:white;
+}
+
+#confirmCancelButton{
+  background:#e0e0e0;
+  color:#333;
+}
+
 /* =========================
    モーダル
 ========================= */
@@ -761,6 +827,30 @@ body{
 <body>
 <div id="map"></div>
 
+<div id="confirmOverlay" class="confirm-overlay" style="display:none;">
+
+  <div class="confirm-box">
+
+    <div id="confirmMessage" class="confirm-message">
+      確認メッセージ
+    </div>
+
+    <div class="confirm-buttons">
+
+      <button id="confirmOkButton" type="button">
+        OK
+      </button>
+
+      <button id="confirmCancelButton" type="button">
+        キャンセル
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
 <!-- スマホ専用：中央ポイント作図 -->
 <div class="mobile-draw-start" id="mobileDrawStart">
   <button onclick="startMobileDraw()">エリアを作図</button>
@@ -1029,7 +1119,7 @@ body{
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWqsCngESSQDAUjhq-1gIMppsZ3F5WlaKeN0NxdpQze32sH-5npgaswnjnWhdyS9NU/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA-tmYZZc0CdCLb8XmyNIKAqVVK1ADnI96Jx-5djn6Lc1LxcZRFyKEK37C9nKRfhvL/exec";
 
 const params = new URLSearchParams(location.search);
 
@@ -1038,7 +1128,7 @@ const CURRENT_CITY = params.get("city") || "";
 const IS_PARENT_PAGE = !CURRENT_CITY;
 
 const isTouchDevice = window.matchMedia("(max-width:600px) and (pointer:coarse)").matches;
-const map = L.map("map", { zoomControl:false }).setView([35.70,139.55], 10)
+const map = L.map("map", { zoomControl:false }).setView([35.70,139.55], 10);
 
 L.control.zoom({ position:"bottomleft" }).addTo(map);
 
@@ -1054,6 +1144,7 @@ const areaItemsById = {};
 const areaLayersById = {};
 
 let currentRequestId = null;
+let confirmCallback = null;
 let areaFormResolver = null;
 let doneFormResolver = null;
 let mobileDrawing = false;
@@ -1636,14 +1727,20 @@ function openRequestMenu(id){
 function chooseDeleteRequest(){
   document.getElementById("requestChoiceModal").style.display = "none";
 
-  const ok = confirm("削除依頼を送信してよろしいですか？");
-  if(!ok) return;
+ openConfirm(
+  "削除依頼を送信してよろしいですか？",
+  function(){
 
-  sendRequestToSheet(
-    currentRequestId,
-    "",
-    "【削除依頼】このエリアの削除をお願いします。"
-  );
+    sendRequestToSheet(
+      currentRequestId,
+      "",
+      "【削除依頼】このエリアの削除をお願いします。"
+    );
+
+  }
+);
+
+return;
 }
 /*
 ※合言葉を復活する場合はこれに置き換え
@@ -1721,11 +1818,22 @@ function submitModifyRequest(){
     "担当者：" + document.getElementById("requestPerson").value + "\n" +
     "備考：" + document.getElementById("requestNote").value;
 
-  const ok = confirm("修正依頼を送信しますか？");
-  if(!ok) return;
+  openConfirm(
+    "修正依頼を送信しますか？",
+    function(){
 
-  document.getElementById("requestFormModal").style.display = "none";
-  sendRequestToSheet(currentRequestId, pass, requestText);
+      document.getElementById("requestFormModal").style.display = "none";
+
+      sendRequestToSheet(
+        currentRequestId,
+        pass,
+        requestText
+      );
+
+    }
+);
+
+return;
 }
 
 function cancelRequestForm(){
@@ -1821,9 +1929,21 @@ function submitAreaForm(){
 
 
   if(type === "配布予定"){
-    const ok = confirm("配布予定エリアは1週間で削除されます。\n登録してよろしいですか？");
-    if(!ok) return;
+
+    openConfirm(
+      "配布予定エリアは1週間で削除されます。<br>登録してよろしいですか？",
+      function(){
+
+        finishAreaFormSubmit(type, pass);
+
+      }
+    );
+
+    return;
   }
+
+finishAreaFormSubmit(type, pass);
+return;
 
   const year = document.getElementById("formYear").value;
   const month = document.getElementById("formMonth").value;
@@ -1831,6 +1951,30 @@ function submitAreaForm(){
   const date = year && month && day ? `${year}/${month}/${day}` : "";
 
   document.getElementById("areaFormModal").style.display = "none";
+
+  areaFormResolver({
+    type:type,
+    date:date,
+    count:document.getElementById("formCount").value,
+    person:document.getElementById("formPerson").value,
+    note:document.getElementById("formNote").value,
+    pass:pass
+  });
+}
+
+function finishAreaFormSubmit(type, pass){
+
+  const year = document.getElementById("formYear").value;
+  const month = document.getElementById("formMonth").value;
+  const day = document.getElementById("formDay").value;
+
+  const date =
+    year && month && day
+      ? `${year}/${month}/${day}`
+      : "";
+
+  document.getElementById("areaFormModal").style.display =
+    "none";
 
   areaFormResolver({
     type:type,
@@ -1961,34 +2105,40 @@ function submitContactForm(){
   */
 
   
-  const ok = confirm("管理者へ連絡を送信しますか？");
-  if(!ok) return;
+  openConfirm(
+  "管理者へ連絡を送信しますか？",
+    function(){
 
-  /* 送信ボタンを押したらすぐフォームを閉じる */
-  document.getElementById("contactFormModal").style.display = "none";
+      /* 送信ボタンを押したらすぐフォームを閉じる */
+      document.getElementById("contactFormModal").style.display =
+        "none";
 
+      fetch(SCRIPT_URL, {
+        method:"POST",
+        body:JSON.stringify({
+          action:"contact",
+          pass:pass,
+          title:title,
+          message:message,
+          name:document.getElementById("contactName").value,
+          email:document.getElementById("contactEmail").value,
+          note:document.getElementById("contactNote").value
+        })
+      })
+      .then(res => res.json())
+      .then(result => {
+        if(result.status === "OK"){
+          alert("管理者へ連絡を送信しました");
+        }else{
+          alert("合言葉が違います");
+        }
+      });
 
-  fetch(SCRIPT_URL, {
-    method:"POST",
-    body:JSON.stringify({
-      action:"contact",
-      pass:pass,
-      title:title,
-      message:message,
-      name:document.getElementById("contactName").value,
-      email:document.getElementById("contactEmail").value,
-      note:document.getElementById("contactNote").value
-    })
-  })
-  .then(res => res.json())
-  .then(result => {
-    if(result.status === "OK"){
-      alert("管理者へ連絡を送信しました");
-      document.getElementById("contactFormModal").style.display = "none";
-    }else{
-      alert("合言葉が違います");
     }
-  });
+  );
+
+  return;
+
 }
 
 function cancelContactForm(){
@@ -2004,6 +2154,25 @@ function resetView(){
       padding:[30, 30]
     });
   }
+}
+
+function openConfirm(message, callback){
+
+  confirmCallback = callback;
+
+  document.getElementById("confirmMessage").innerHTML =
+    message;
+
+  document.getElementById("confirmOverlay").style.display =
+    "flex";
+}
+
+function closeConfirm(){
+
+  document.getElementById("confirmOverlay").style.display =
+    "none";
+
+  confirmCallback = null;
 }
 
 function searchAreaById(){
@@ -2101,6 +2270,25 @@ function goParentPage(){
 window.convertPlannedToDone = convertPlannedToDone;
 window.copyAreaId = copyAreaId;
 window.searchAreaById = searchAreaById;
+
+document.getElementById("confirmOkButton")
+.addEventListener("click", function(){
+
+  const cb = confirmCallback;
+
+  closeConfirm();
+
+  if(cb) cb();
+
+});
+
+document.getElementById("confirmCancelButton")
+.addEventListener("click", function(){
+
+  closeConfirm();
+
+});
+
 window.resetView = resetView;
 window.goParentPage = goParentPage;
 window.toggleHistoryPanel = toggleHistoryPanel;
