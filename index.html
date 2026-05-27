@@ -25,6 +25,57 @@ body{
   height:100%;
 }
 
+.confirm-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.35);
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.confirm-box{
+  width:min(320px, 85vw);
+  background:white;
+  border-radius:14px;
+  padding:18px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  text-align:center;
+}
+
+.confirm-message{
+  font-size:16px;
+  font-weight:bold;
+  line-height:1.6;
+  margin-bottom:18px;
+  color:#333;
+}
+
+.confirm-buttons{
+  display:flex;
+  gap:10px;
+}
+
+.confirm-buttons button{
+  flex:1;
+  padding:10px 0;
+  border:none;
+  border-radius:8px;
+  font-size:15px;
+  font-weight:bold;
+}
+
+#confirmOkButton{
+  background:#ff9800;
+  color:white;
+}
+
+#confirmCancelButton{
+  background:#e0e0e0;
+  color:#333;
+}
+
 .panel{
   position:absolute;
   background:white;
@@ -32,6 +83,54 @@ body{
   z-index:1000;
   border-radius:8px;
   box-shadow:0 0 6px rgba(0,0,0,.3);
+}
+
+.city-move-panel{
+  position:absolute;
+  left:50%;
+  top:50%;
+
+  transform:translate(-50%, -50%);
+  z-index:2500;
+
+  background:white;
+  border-left:5px solid #ff9800;
+  border-radius:10px;
+  padding:10px 12px;
+
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+
+  font-size:14px;
+  font-weight:bold;
+  line-height:1.5;
+}
+
+.city-move-text{
+  margin-bottom:8px;
+  color:#333;
+}
+
+.city-move-panel button{
+  display:block;
+  width:100%;
+  margin-top:6px;
+  padding:7px 8px;
+  font-size:13px;
+  font-weight:bold;
+}
+
+#cityMoveButton{
+  background:#ff9800;
+  color:white;
+  border:1px solid #e08000;
+  border-radius:6px;
+}
+
+#cityMoveCancel{
+  background:#eeeeee;
+  color:#333;
+  border:1px solid #cccccc;
+  border-radius:6px;
 }
 
 .title{
@@ -374,6 +473,22 @@ body{
 @media (max-width:600px) and (pointer:coarse){
   .leaflet-draw{
     display:none !important;
+  }
+
+  .city-move-panel{
+    left:50%;
+    top:50%;
+
+    transform:translate(-50%, -50%);
+    padding:8px 10px;
+    font-size:12px;
+    border-radius:8px;
+    max-width:150px;
+  }
+
+  .city-move-panel button{
+    font-size:11px !important;
+    padding:6px 7px;
   }
 
   #parentNotice{
@@ -797,6 +912,25 @@ body{
 <body>
 <div id="map"></div>
 
+<div id="confirmOverlay" class="confirm-overlay" style="display:none;">
+  <div class="confirm-box">
+    <div id="confirmMessage" class="confirm-message">
+      確認メッセージ
+    </div>
+
+    <div class="confirm-buttons">
+      <button id="confirmOkButton" type="button">OK</button>
+      <button id="confirmCancelButton" type="button">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="cityMovePanel" class="city-move-panel" style="display:none;">
+  <div id="cityMoveText" class="city-move-text"></div>
+  <button id="cityMoveButton" type="button">市町村ページへ移動</button>
+  <button id="cityMoveCancel" type="button">キャンセル</button>
+</div>
+
 <div id="parentNotice">
   ※エリア作図は<br>
   　各市町村ページにて
@@ -1070,7 +1204,7 @@ body{
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwWqsCngESSQDAUjhq-1gIMppsZ3F5WlaKeN0NxdpQze32sH-5npgaswnjnWhdyS9NU/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA-tmYZZc0CdCLb8XmyNIKAqVVK1ADnI96Jx-5djn6Lc1LxcZRFyKEK37C9nKRfhvL/exec";
 
 const params = new URLSearchParams(location.search);
 
@@ -1079,7 +1213,7 @@ const CURRENT_CITY = params.get("city") || "";
 const IS_PARENT_PAGE = !CURRENT_CITY;
 
 const isTouchDevice = window.matchMedia("(max-width:600px) and (pointer:coarse)").matches;
-const map = L.map("map", { zoomControl:false }).setView([35.70,139.55], 10)
+const map = L.map("map", { zoomControl:false }).setView([35.70,139.55], 10);
 
 L.control.zoom({ position:"bottomleft" }).addTo(map);
 
@@ -1095,12 +1229,16 @@ const areaItemsById = {};
 const areaLayersById = {};
 
 let currentRequestId = null;
+let confirmCallback = null;
 let areaFormResolver = null;
 let doneFormResolver = null;
 let mobileDrawing = false;
 let mobilePoints = [];
 let mobilePreviewLayer = null;
 let ignoreNextClick = false;
+
+let selectedCityName = null;
+let selectedCityUrl = null;
 
 // =========================
 // Leaflet Draw 日本語化
@@ -1194,19 +1332,15 @@ fetch("tokyo.geojson")
               getCityFitOptions()
             );
 
-            setTimeout(function(){
+            selectedCityName = cityName;
+            selectedCityUrl =
+              "map.html?city=" +
+              encodeURIComponent(cityName);
 
-              const ok = confirm(
-                cityName + "ページに移動しますか？"
-              );
+            document.getElementById("cityMoveText").innerHTML =
+              cityName + "ページに<br>移動しますか？";
 
-              if(!ok) return;
-
-              location.href =
-                "map.html?city=" +
-                encodeURIComponent(cityName);
-
-            }, 400);
+            document.getElementById("cityMovePanel").style.display = "block";
 
 
 
@@ -2013,34 +2147,37 @@ function submitContactForm(){
   */
 
   
-  const ok = confirm("管理者へ連絡を送信しますか？");
-  if(!ok) return;
+  openConfirm(
+  "管理者へ連絡を送信しますか？",
+  function(){
 
-  /* 送信ボタンを押したらすぐフォームを閉じる */
-  document.getElementById("contactFormModal").style.display = "none";
+    document.getElementById("contactFormModal").style.display = "none";
 
-
-  fetch(SCRIPT_URL, {
-    method:"POST",
-    body:JSON.stringify({
-      action:"contact",
-      pass:pass,
-      title:title,
-      message:message,
-      name:document.getElementById("contactName").value,
-      email:document.getElementById("contactEmail").value,
-      note:document.getElementById("contactNote").value
+    fetch(SCRIPT_URL, {
+      method:"POST",
+      body:JSON.stringify({
+        action:"contact",
+        pass:pass,
+        title:title,
+        message:message,
+        name:document.getElementById("contactName").value,
+        email:document.getElementById("contactEmail").value,
+        note:document.getElementById("contactNote").value
+      })
     })
-  })
-  .then(res => res.json())
-  .then(result => {
-    if(result.status === "OK"){
-      alert("管理者へ連絡を送信しました");
-      document.getElementById("contactFormModal").style.display = "none";
-    }else{
-      alert("合言葉が違います");
-    }
-  });
+    .then(res => res.json())
+    .then(result => {
+      if(result.status === "OK"){
+        alert("管理者へ連絡を送信しました");
+      }else{
+        alert("合言葉が違います");
+      }
+    });
+
+  }
+);
+
+return;
 }
 
 function cancelContactForm(){
@@ -2056,6 +2193,28 @@ function resetView(){
       padding:[30, 30]
     });
   }
+}
+
+function openConfirm(message, callback){
+  confirmCallback = callback;
+  document.getElementById("confirmMessage").innerHTML = message;
+  document.getElementById("confirmOverlay").style.display = "flex";
+}
+
+function closeConfirm(){
+  document.getElementById("confirmOverlay").style.display = "none";
+  confirmCallback = null;
+}
+
+function moveToSelectedCity(){
+  if(!selectedCityUrl) return;
+  location.href = selectedCityUrl;
+}
+
+function cancelCityMove(){
+  selectedCityName = null;
+  selectedCityUrl = null;
+  document.getElementById("cityMovePanel").style.display = "none";
 }
 
 function searchAreaById(){
@@ -2121,6 +2280,25 @@ map.on("click", function(e){
   }
 });
 
+document.getElementById("cityMoveButton").addEventListener("click", moveToSelectedCity);
+document.getElementById("cityMoveCancel").addEventListener("click", cancelCityMove);
+
+document.getElementById("confirmOkButton")
+.addEventListener("click", function(){
+
+  const cb = confirmCallback;
+
+  closeConfirm();
+
+  if(cb) cb();
+
+});
+
+document.getElementById("confirmCancelButton")
+.addEventListener("click", function(){
+  closeConfirm();
+});
+
 // =========================
 // onclick用に公開
 // =========================
@@ -2156,6 +2334,10 @@ window.searchAreaById = searchAreaById;
 window.resetView = resetView;
 window.goParentPage = goParentPage;
 window.toggleHistoryPanel = toggleHistoryPanel;
+
+window.moveToSelectedCity = moveToSelectedCity;
+window.cancelCityMove = cancelCityMove;
+
 </script>
 </body>
 </html>
