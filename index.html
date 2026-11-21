@@ -3,13 +3,41 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>東京　配布エリア共有マップ</title>
+<title>【東京都】東京都知事リコール周知用チラシ　配布エリア共有マップ</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<!-- 外部データの接続準備を先に始める -->
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<!-- 初期データをLeaflet読込みと並行して先行取得 -->
+<script>
+window.MAP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzg2sgBBm1wVxTCRJy_9KFKywkeY4686qD2fe23Xaj_8kYO8qNX7DVWO59n8-9Tp25X/exec";
+(function(){
+  function earlyJson(url){
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    return fetch(url, { signal:controller.signal })
+      .then(res => {
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .catch(error => {
+        console.warn("先行読込みを通常読込みへ切り替えます", error);
+        return null;
+      })
+      .finally(() => clearTimeout(timer));
+  }
+  window.__initialBoundaryDataPromise = earlyJson("tokyo.geojson");
+  window.__initialAreaDataPromise = earlyJson(window.MAP_SCRIPT_URL);
+})();
+</script>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
 /* =========================
@@ -74,6 +102,142 @@ body{
 #confirmCancelButton{
   background:#e0e0e0;
   color:#333;
+}
+.area-choice-box{
+  width:min(400px, calc(100vw - 32px));
+  max-height:80vh;
+  overflow:hidden;
+  background:white;
+  border-radius:14px;
+  padding:16px;
+  box-sizing:border-box;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+}
+
+.area-choice-title{
+  margin-bottom:10px;
+  color:#333;
+  font-size:16px;
+  font-weight:bold;
+  text-align:center;
+}
+
+.area-choice-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:55vh;
+  overflow-y:auto;
+  padding:2px;
+}
+
+.area-choice-button{
+  width:100%;
+  padding:9px 10px;
+  background:#fff;
+  color:#333;
+  border:1px solid #ccc;
+  border-left:6px solid #999;
+  border-radius:8px;
+  text-align:left;
+  cursor:pointer;
+}
+
+.area-choice-button.planned{
+  border-left-color:#0066ff;
+  background:#f4f8ff;
+}
+
+.area-choice-button.done{
+  border-left-color:#ff3333;
+  background:#fff5f5;
+}
+
+.area-choice-type{
+  display:block;
+  margin-bottom:3px;
+  font-size:14px;
+  font-weight:bold;
+}
+
+.area-choice-meta{
+  display:block;
+  color:#555;
+  font-size:12px;
+  line-height:1.45;
+  white-space:pre-line;
+}
+
+.area-choice-cancel{
+  width:100%;
+  margin-top:12px;
+  padding:9px;
+  background:#e0e0e0;
+  color:#333;
+  border:none;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+
+.city-candidate-box{
+  width:min(420px, calc(100vw - 32px));
+  max-height:80vh;
+  overflow:hidden;
+  background:white;
+  border-radius:14px;
+  padding:16px;
+  box-sizing:border-box;
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+}
+
+.city-candidate-title{
+  margin-bottom:12px;
+  color:#333;
+  font-size:16px;
+  font-weight:bold;
+  text-align:center;
+}
+
+.city-candidate-list{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:8px;
+  max-height:55vh;
+  overflow-y:auto;
+  padding:2px;
+}
+
+.city-candidate-button{
+  min-height:40px;
+  padding:8px 6px;
+  background:#fff8ec;
+  color:#333;
+  border:1px solid #ff9800;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.city-candidate-button:hover{
+  background:#ff9800;
+  color:white;
+}
+
+.city-candidate-cancel{
+  width:100%;
+  margin-top:12px;
+  padding:9px;
+  background:#e0e0e0;
+  color:#333;
+  border:none;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
 .panel{
@@ -231,9 +395,10 @@ body{
    各パネル
 ========================= */
 
+/* 「エリア作図は各市町村ページにて」 */
 #parentNotice{
   position:absolute;
-  top:100px;
+  top:80px;
   left:18px;
 
   z-index:1000;
@@ -245,7 +410,7 @@ body{
 
   padding:10px 12px;
 
-  font-size:14px;
+  font-size:16px;
   font-weight:bold;
 
   color:#444;
@@ -255,8 +420,79 @@ body{
   box-shadow:0 2px 6px rgba(0,0,0,0.25);
 }
 
+.parent-notice-sub{
+  margin-top:5px;
+  font-size:11px;
+  font-weight:normal;
+  line-height:1.35;
+  color:#666;
+}
+
+
+/* 市町村名を検索 */
+.city-search-panel{
+  top:180px;
+  left:18px;
+
+  display:flex;
+  align-items:center;
+  gap:5px;
+
+  padding:6px 7px;
+}
+
+.city-search-panel input{
+  width:140px;
+  padding:6px 7px;
+  font-size:13px;
+}
+
+/* 市町村名を「検索」ボタン */
+.city-search-panel button{
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.city-name-label-icon{
+  width:0 !important;
+  height:0 !important;
+  background:none;
+  border:none;
+  pointer-events:none;
+}
+
+.city-name-label-text{
+  display:block;
+  width:max-content;
+  transform:translate(-50%, -50%);
+  padding:2px 5px;
+  background:rgba(255,255,255,.82);
+  color:#222;
+  border:1px solid rgba(0,0,0,.2);
+  border-radius:5px;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+  font-size:13px;
+  font-weight:bold;
+  line-height:1.25;
+  white-space:nowrap;
+  text-shadow:
+    1px 1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px -1px 0 #fff;
+}
+
+.city-name-label-text.main-city{
+  padding:3px 6px;
+  border-color:rgba(255,152,0,.7);
+  font-size:15px;
+}
+
+/* 「管理者へ連絡」ボタン */
 .contact-panel{
-  top:55px;
+  top:65px;
   right:15px;
   width:auto;
   padding:8px 14px;
@@ -312,38 +548,204 @@ body{
   border-top:1px solid #eee;
 }
 
-.id-search-panel{
+/* エリア検索 */
+.area-search-panel{
   top:350px;
   right:15px;
-  width:210px;
-  padding:10px;   /* ← 修正履歴と同じにする */
+  width:110px;
+  padding:8px 10px;
+  box-sizing:border-box;
 }
 
-.id-search-panel input{
-  width:135px;
-  padding:5px;
+.area-search-panel.has-result{
+  width:240px;
+  top:560px;
+}
+
+.area-search-panel > button{
+  width:100%;
+  padding:7px 10px;
+  border:2px solid #c8c8c8;
+  border-radius:6px;
+  background:#f5f5f5;
+  color:#444;
   font-size:12px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
-.id-search-panel button{
-  padding:5px 8px;
+.area-search-panel > button:hover{
+  background:#eeeeee;
+}
+
+.area-search-result-summary{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.area-search-count{
+  color:#444;
   font-size:12px;
-}
-
-.id-search-count{
-  font-size:11px;
-  color:#666;
-  margin-top:4px;
+  font-weight:bold;
   text-align:center;
 }
 
+.area-search-result-buttons{
+  display:flex;
+  gap:5px;
+}
+
+.area-search-result-buttons button{
+  flex:1;
+  padding:5px 4px;
+  border:1px solid #ccc;
+  border-radius:5px;
+  background:#f5f5f5;
+  color:#333;
+  font-size:12px;
+  font-weight:bold;
+  white-space:nowrap;
+  cursor:pointer;
+}
+
+.area-search-result-buttons button:first-child{
+  border-color:#ff9800;
+  background:#fff8ec;
+}
+
+.area-search-modal-box{
+  max-height:88vh;
+  overflow-y:auto;
+  box-sizing:border-box;
+}
+
+.area-search-help{
+  margin:0 0 8px;
+  color:#666;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.area-search-range-label{
+  margin:5px 0 0;
+  color:#666;
+  font-size:12px;
+}
+
+.area-search-count-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.area-search-count-row input{
+  flex:1;
+  min-width:0;
+}
+
+.area-search-person-mode{
+  display:flex;
+  gap:14px;
+  margin-top:6px;
+}
+
+.area-search-person-mode label{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-top:0;
+  font-size:13px;
+  font-weight:normal;
+  cursor:pointer;
+}
+
+.area-search-person-mode input{
+  width:auto;
+  margin:0;
+  padding:0;
+}
+
+.area-search-modal-buttons{
+  gap:7px;
+}
+
+.area-search-modal-buttons button{
+  min-width:0;
+  padding:10px 3px;
+  font-size:13px !important;
+  white-space:nowrap;
+}
+
+.area-search-clear-button{
+  background:#f5f5f5;
+  color:#666;
+  border:1px solid #ccc;
+}
+
+.area-search-submit-button{
+  font-weight:bold;
+}
+
+/* エリア検索の日付欄＋カレンダーボタン */
+.area-search-date-row{
+  align-items:center;
+}
+
+.area-search-date-row select{
+  flex:1;
+  width:auto;
+  min-width:0;
+}
+
+.area-search-calendar-button{
+  position:relative;
+  flex:0 0 42px;
+  width:42px;
+  height:38px;
+  margin-top:4px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  border:1px solid #aaa;
+  border-radius:5px;
+  background:#fff8ec;
+  font-size:20px;
+  cursor:pointer;
+  overflow:hidden;
+}
+
+.area-search-calendar-button:hover{
+  background:#ffefd2;
+  border-color:#ff9800;
+}
+
+.area-search-calendar-button:focus-within{
+  outline:2px solid #ff9800;
+  outline-offset:1px;
+}
+
+/* 透明な標準カレンダーを📅ボタン全体に重ねる */
+.area-search-calendar-button input{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  margin:0;
+  padding:0;
+  opacity:0;
+  cursor:pointer;
+}
+
+/* 「東京都を全体表示」 */
 .reset-panel{
   bottom:20px;
   left:20px;
 }
 
 .parent-link-panel{
-  bottom:58px;
+  bottom:10px;
   left:20px;
   padding:4px 8px;
 }
@@ -353,7 +755,9 @@ body{
   padding:5px 8px;
 }
 
-/* ズームボタンを「全体表示に戻る」の上へ */
+
+
+/* ズームボタンを「全体表示に戻る」の上へ。＋－ボタン */
 .leaflet-bottom.leaflet-left{
   bottom:52px;
 }
@@ -361,6 +765,138 @@ body{
 /* =========================
    ポップアップ
 ========================= */
+.area-detail-popup{
+  display:none;
+  position:fixed;
+  left:50%;
+  top:50%;
+  z-index:2500;
+
+  width:min(276px, 72vw);
+  max-height:75vh;
+  box-sizing:border-box;
+  overflow-y:auto;
+
+  padding:18px 16px 14px;
+  background:#fff;
+  border-radius:12px;
+  box-shadow:0 4px 16px rgba(0,0,0,.35);
+
+  font-size:13px;
+  line-height:1.5;
+}
+
+.area-detail-popup::after{
+  content:"";
+  position:fixed;
+  left:var(--area-detail-arrow-x, -100px);
+  top:var(--area-detail-arrow-y, -100px);
+  transform:translateX(-50%);
+  border:10px solid transparent;
+  border-top-color:#fff;
+  pointer-events:none;
+  filter:drop-shadow(0 2px 1px rgba(0,0,0,.18));
+}
+
+.area-detail-popup.popup-below::after{
+  border-top-color:transparent;
+  border-bottom-color:#fff;
+  transform:translate(-50%, -20px);
+}
+
+.area-detail-popup.manually-moved::after{
+  display:none;
+}
+
+.area-detail-popup.screen-positioned::after{
+  display:none;
+}
+
+.area-detail-drag-handle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+
+  margin:-18px -16px 10px;
+  padding:7px 7px 7px 10px;
+
+  background:#fff4df;
+  border-bottom:2px solid #ff9800;
+  border-radius:12px 12px 0 0;
+
+  font-weight:bold;
+  cursor:grab;
+  user-select:none;
+  touch-action:none;
+}
+
+.area-detail-drag-handle:active,
+.area-detail-drag-handle.dragging{
+  cursor:grabbing;
+  background:#ffe7bd;
+}
+
+.area-detail-drag-label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+
+.area-detail-title{
+  white-space:nowrap;
+}
+
+.area-detail-move-hint{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  padding:3px 7px;
+  background:#ff9800;
+  color:#fff;
+  border-radius:999px;
+  font-size:10px;
+  line-height:1.2;
+  white-space:nowrap;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  animation:dragHintMove 1.2s ease 2;
+}
+
+.area-detail-grip{
+  font-size:14px;
+  line-height:1;
+}
+
+.area-detail-close{
+  flex:0 0 auto;
+  width:26px;
+  height:26px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:#fff;
+  color:#555;
+  font-size:20px;
+  line-height:26px;
+  cursor:pointer;
+}
+
+.area-detail-close:hover{
+  background:#f1f1f1;
+}
+
+.area-detail-popup .popup-main-info{
+  font-size:14px;
+  line-height:1.55;
+}
+
+@keyframes dragHintMove{
+  0%, 100%{ transform:translateX(0); }
+  35%{ transform:translateX(3px); }
+  70%{ transform:translateX(-2px); }
+}
+
 .popup-admin-btn{
   background:#eeeeee;
   border:1px solid #cccccc;
@@ -445,7 +981,7 @@ body{
 
 .legend-panel{
   right:15px;
-  bottom:20px;   /* PC：右下 */
+  bottom:35px;   /* PC：右下 */
   font-size:13px;
   line-height:1.6;
   padding:8px 10px;
@@ -469,8 +1005,430 @@ body{
   background:#ff3333;   /* 配布済（赤） */
 }
 
+/* 重なったエリアの確認ボックスだけ上側へ寄せる */
+#confirmOverlay.area-preview-confirm{
+  align-items:flex-start;
+  padding-top:70px;
+  box-sizing:border-box;
+}
+
+
+/* 重なりエリア選択の2つのボックスを上側へ寄せる */
+#areaChoiceOverlay,
+#confirmOverlay.area-preview-confirm{
+  align-items:flex-start;
+  padding-top:70px;
+  padding-bottom:20px;
+  box-sizing:border-box;
+  overflow-y:auto;
+}
+
+/* 最新情報更新メッセージ */
+.update-status{
+  position:absolute;
+  top:58px;
+  left:50%;
+  transform:translateX(-50%);
+
+  z-index:1800;
+
+  padding:5px 10px;
+
+  background:rgba(255,255,255,.92);
+  color:#666;
+
+  border:1px solid #ddd;
+  border-radius:999px;
+
+  box-shadow:0 1px 4px rgba(0,0,0,.15);
+
+  font-size:12px;
+  font-weight:bold;
+
+  white-space:nowrap;
+
+  opacity:1;
+  transition:
+    opacity .4s ease,
+    transform .4s ease;
+}
+
+.update-status.done{
+  color:#1565c0;
+  border-color:#90caf9;
+  background:rgba(239,248,255,.96);
+}
+
+.update-status.error{
+  color:#b71c1c;
+  border-color:#ef9a9a;
+  background:rgba(255,245,245,.95);
+}
+
+.update-status.hide{
+  opacity:0;
+  transform:translate(-50%, -5px);
+  pointer-events:none;
+}
+
+/* =========================
+   配布対象チラシ
+========================= */
+
+/* タイトル横の小さいチラシ */
+.flyer-thumbnail{
+  display:none;
+  position:absolute;
+  z-index:1900;
+
+  padding:0;
+  margin:0;
+
+  border:2px solid white;
+  border-radius:5px;
+
+  background:white;
+
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
+
+  overflow:hidden;
+  cursor:pointer;
+
+  opacity:0;
+  transform:scale(.8);
+
+  transition:
+    opacity .25s ease,
+    transform .25s ease;
+}
+
+.flyer-thumbnail.visible{
+  display:block;
+  opacity:1;
+  transform:scale(1);
+}
+
+.flyer-thumbnail img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+
+/* 大きなチラシ表示 */
+.flyer-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+
+  z-index:50000;
+
+  align-items:center;
+  justify-content:center;
+
+  padding:20px;
+  box-sizing:border-box;
+
+  background:rgba(0,0,0,.55);
+
+  opacity:0;
+
+  transition:opacity .25s ease;
+}
+
+.flyer-overlay.open{
+  display:flex;
+}
+
+.flyer-overlay.visible{
+  opacity:1;
+}
+
+
+.flyer-card{
+  position:relative;
+
+  max-width:min(520px, 88vw);
+  max-height:88vh;
+
+  padding:42px 12px 12px;
+
+  box-sizing:border-box;
+
+  background:white;
+
+  border-radius:14px;
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.4);
+
+  transform:scale(.94);
+  opacity:0;
+
+  transition:
+    transform .45s cubic-bezier(.2,.8,.2,1),
+    opacity .3s ease;
+}
+
+.flyer-overlay.visible .flyer-card{
+  transform:scale(1);
+  opacity:1;
+}
+
+
+/* 閉じる時にタイトル横へ吸い込まれる */
+.flyer-card.flyer-closing{
+  transform:
+    translate(
+      var(--flyer-dx, 0px),
+      var(--flyer-dy, 0px)
+    )
+    scale(
+      var(--flyer-scale, .1)
+    );
+
+  opacity:.25;
+}
+
+
+.flyer-main-image{
+  display:block;
+
+  max-width:100%;
+  max-height:calc(88vh - 65px);
+
+  margin:auto;
+
+  object-fit:contain;
+
+  border-radius:5px;
+}
+
+
+.flyer-guide{
+  position:absolute;
+
+  top:12px;
+  left:18px;
+  right:55px;
+
+  color:#555;
+
+  font-size:13px;
+  font-weight:bold;
+
+  text-align:center;
+
+  white-space:nowrap;
+}
+
+
+.flyer-close-button{
+  position:absolute;
+
+  top:8px;
+  right:8px;
+
+  width:30px;
+  height:30px;
+
+  padding:0;
+
+  border:0;
+  border-radius:50%;
+
+  background:#eeeeee;
+  color:#444;
+
+  font-size:22px;
+  line-height:30px;
+
+  cursor:pointer;
+}
+
+
+.flyer-close-button:hover{
+  background:#dddddd;
+}
+
+/* =========================
+   みんなの活動報告
+========================= */
+
+.activity-report-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+
+  z-index:50010;
+
+  align-items:center;
+  justify-content:center;
+
+  padding:20px;
+  box-sizing:border-box;
+
+  background:rgba(0,0,0,.55);
+
+  opacity:0;
+  transition:opacity .25s ease;
+}
+
+.activity-report-overlay.open{
+  display:flex;
+}
+
+.activity-report-overlay.visible{
+  opacity:1;
+}
+
+.activity-report-card{
+  position:relative;
+
+  width:min(520px, 88vw);
+  max-height:88vh;
+
+  padding:24px 20px 20px;
+  box-sizing:border-box;
+
+  background:#fff;
+
+  border-radius:14px;
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.4);
+
+  display:flex;
+  flex-direction:column;
+}
+
+.activity-report-title{
+  margin:4px 30px 15px;
+
+  color:#333;
+
+  font-size:22px;
+  font-weight:bold;
+
+  text-align:center;
+}
+
+.activity-report-list{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+
+  padding:2px 6px;
+
+  font-size:15px;
+  line-height:1.9;
+}
+
+.activity-report-item{
+  padding:8px 2px;
+
+  border-bottom:
+    1px solid #eeeeee;
+}
+
+.activity-report-item:last-child{
+  border-bottom:none;
+}
+
+.activity-report-close{
+  position:absolute;
+
+  top:8px;
+  right:8px;
+
+  width:30px;
+  height:30px;
+
+  padding:0;
+
+  border:0;
+  border-radius:50%;
+
+  background:#eeeeee;
+  color:#444;
+
+  font-size:22px;
+  line-height:30px;
+
+  cursor:pointer;
+}
+
+.activity-report-close:hover{
+  background:#dddddd;
+}
+
+.activity-report-thanks{
+  margin-bottom:12px;
+  color:#666;
+  font-size:14px;
+  text-align:center;
+}
+
+.activity-report-total{
+  margin-bottom:14px;
+  color:#333;
+  font-size:17px;
+  font-weight:bold;
+  text-align:center;
+}
+
+.activity-report-total-count{
+  text-decoration:underline;
+  text-decoration-color:#f59e0b;
+  text-decoration-thickness:2px;
+  text-underline-offset:4px;
+}
+
+.activity-report-list{
+  border-top:1px solid #e5e5e5;
+  padding-top:9px;
+}
+
 
 @media (max-width:600px) and (pointer:coarse){
+  .area-detail-popup{
+    width:min(264px, 72vw);
+    max-height:60vh;
+    padding:10px;
+    font-size:12px;
+  }
+
+  .area-detail-drag-handle{
+    margin:-10px -10px 6px;
+    padding:4px 5px 4px 7px;
+    border-radius:12px 12px 0 0;
+  }
+
+  .area-detail-drag-label{
+    gap:4px;
+  }
+
+  .area-detail-move-hint{
+    padding:2px 5px;
+    font-size:9px;
+  }
+
+  .area-detail-grip{
+    font-size:12px;
+  }
+
+  .area-detail-close{
+    width:23px;
+    height:23px;
+    font-size:18px !important;
+    line-height:23px;
+  }
+
+  .area-detail-popup .popup-main-info{
+    font-size:12px;
+    line-height:1.45;
+  }
+
   .leaflet-draw{
     display:none !important;
   }
@@ -491,15 +1449,76 @@ body{
     padding:6px 7px;
   }
 
+  .city-candidate-box{
+    width:calc(100vw - 24px);
+    padding:12px;
+  }
+
+  .city-candidate-title{
+    margin-bottom:9px;
+    font-size:14px;
+  }
+
+  .city-candidate-list{
+    gap:6px;
+  }
+
+  .city-candidate-button{
+    min-height:38px;
+    padding:7px 4px;
+    font-size:12px !important;
+  }
+
+  .city-candidate-cancel{
+    margin-top:9px;
+    padding:8px;
+    font-size:12px !important;
+  }
+
   #parentNotice{
-    top:70px;
+    top:55px;
     left:10px;
 
-    padding:8px 10px;
+    padding:7px 9px;
 
-    font-size:12px;
+    font-size:13px;
 
     border-radius:8px;
+  }
+
+  .parent-notice-sub{
+    margin-top:4px;
+    font-size:9px;
+  }
+
+  .city-search-panel{
+    top:55px;
+    right:10px;
+    left:auto;
+
+    padding:4px 6px;
+    gap:4px;
+  }
+
+  .city-search-panel input{
+    width:80px;
+    padding:4px 5px;
+    font-size:16px !important;
+  }
+
+  .city-search-panel button{
+    padding:4px 7px;
+    font-size:12px !important;
+  }
+
+  .city-name-label-text{
+    padding:2px 4px;
+    font-size:11px;
+  }
+
+  .city-name-label-text.main-city{
+    padding:2px 5px;
+    font-size:13px;
   }
 
   .mobile-draw-start{
@@ -605,7 +1624,9 @@ body{
   }
 
   .contact-panel{
-    top:55px;
+    bottom:25px;
+    right:20px;
+    top:auto;
     padding:3px 5px;
   }
 
@@ -615,8 +1636,8 @@ body{
   }
 
   .reset-panel{
-    left:6px;
-    bottom:80px;
+    left:50px;
+    bottom:10px;
     padding:5px;
   }
 
@@ -636,54 +1657,47 @@ body{
     padding:5px 7px;
   }
 
+ 
+
   .leaflet-bottom.leaflet-left{
-    bottom:110px;
+    bottom:10px;
     left:6px;
   }
 
   .leaflet-bottom.leaflet-left .leaflet-control-zoom{
     margin-left:5px;     /* ← 左へ寄せる（小さくするほど左） */
-    margin-bottom:26px;  /* ← 下へ寄せる（小さくするほど下） */
+    margin-bottom:0px;  /* ← 下へ寄せる（小さくするほど下） */
   }
 
   
 
-  .id-search-panel input{
-    width:82px;
-    font-size:11px;
-    padding:4px;
+  .area-search-panel{
+    right:10px;
+    top:100px;
+    width:90px;
+    padding:3px 4px;
   }
 
-  .id-search-panel button{
-    font-size:11px;
-    padding:4px 6px;
+  .area-search-panel.has-result{
+    width:190px;
+    top:55px;
   }
 
-
-  .id-search-panel{
-    right:6px;
-    bottom:6px;
-    top:auto;
-
-    width:145px;
-
-    padding-top:5.5px;
-    padding-bottom:5.5px;
-    padding-left:6px;
-    padding-right:6px;
-
-    display:flex;
-    align-items:center;
-    gap:4px;
+  .area-search-panel > button{
+    padding:4px 2px;
+    border:1px solid #c8c8c8;
+    background:#dfdcdc;
+    font-size:11px !important;
   }
 
-  .id-search-count{
-    order:-1;              /* 左に出す */
-    font-size:9px;
-    color:#666;
-    margin-top:0;
-    white-space:nowrap;    /* 1行固定 */
-    min-width:max-content;
+  .area-search-count{
+    font-size:10px;
+  }
+
+  .area-search-result-buttons button{
+    min-width:0;
+    padding:4px 2px !important;
+    font-size:9px !important;
   }
 
   .history-title{
@@ -693,7 +1707,7 @@ body{
   .admin-history-panel{
     top:auto !important;
     bottom:60px !important;
-    right:6px;
+    right:10px;
     width:145px;
     height:60px !important;
     max-height:none;
@@ -755,20 +1769,15 @@ body{
 
   .reset-panel button,
   .parent-link-panel button,
-  .id-search-panel button,
   .contact-panel button{
     font-size:12px !important;
     line-height:1.2;
   }
 
-  .id-search-panel input{
-    font-size:12px !important;
-  }
-
-  .id-search-panel button{
-    width:48px;
-    min-width:48px;
-    padding:4px 2px !important;
+  .area-search-modal-box{
+    width:88% !important;
+    max-width:88% !important;
+    max-height:calc(100vh - 70px) !important;
   }
 
   .modal-bg{
@@ -804,8 +1813,8 @@ body{
   }
 
   .legend-panel{
-    left:6px;     /* +-ボタンの右 */
-    bottom:6px;    /* 全体表示ボタンの上ラインに合わせる */
+    left:10px;     /* +-ボタンの右 */
+    bottom:75px;    /* 全体表示ボタンの上ラインに合わせる */
     right:auto;
     font-size:11px;
     padding:5px 7px;
@@ -821,8 +1830,193 @@ body{
     font-family: Arial, "Helvetica Neue", sans-serif;
   }
 
-}
+    /* スマホのみ：＋－ボタンをmapページと同じ大きさにする */
+  .leaflet-control-zoom{
+    transform:scale(0.8);
+    transform-origin:bottom left;
+  }
 
+    /* =========================
+     スマホ：エリア詳細を横長・省スペース化
+  ========================= */
+
+  .area-detail-popup{
+    width:85vw;
+    max-width:none;
+    max-height:none;
+    padding:8px;
+    overflow:hidden;
+    font-size:11px;
+    line-height:1.35;
+  }
+
+    /* 詳細の内容部分だけスクロール */
+  #areaDetailPopupContent{
+    max-height:18vh;
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding-right:3px;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+
+  #areaDetailPopupContent::-webkit-scrollbar{
+    width:4px;
+  }
+
+  #areaDetailPopupContent::-webkit-scrollbar-thumb{
+    background:#aaa;
+    border-radius:999px;
+  }
+
+  .area-detail-drag-handle{
+    margin:-8px -8px 5px;
+  }
+
+  /* 市町村～備考を2列にする */
+  .area-detail-popup .popup-info-grid{
+    display:grid;
+    grid-template-columns:minmax(0, 3.8fr) minmax(0, 6.2fr);
+    grid-template-rows:repeat(3, auto);
+    grid-auto-flow:column;
+    font-size:10.5px;
+    line-height:1.35;
+  }
+
+  .popup-info-item{
+    min-width:0;
+    padding:3px 5px 3px 0;
+    overflow-wrap:anywhere;
+  }
+
+  /* 右側の列に縦線を付ける */
+  .popup-info-item:nth-child(n+4){
+    border-left:1px solid #bcbcbc;
+    padding-right:0;
+    padding-left:7px;
+  }
+
+  /* 修正・削除依頼の説明 */
+  #areaDetailPopupContent > div:nth-child(2){
+    margin-top:6px !important;
+    font-size:9.5px !important;
+    line-height:1.3 !important;
+  }
+
+  /* 市町村ページへ移動 */
+  #areaDetailPopupContent > .area-detail-action-row > .popup-admin-btn{
+    margin-top:0 !important;
+    padding:3px 6px !important;
+    font-size:10px !important;
+    line-height:1.25;
+  }
+
+  /* 管理者IDの上の区切り線 */
+  #areaDetailPopupContent > hr{
+    margin:6px 0 !important;
+  }
+
+  /* 管理者用ID */
+  #areaDetailPopupContent > div:last-child{
+    font-size:9.5px !important;
+    line-height:1.3;
+    overflow-wrap:anywhere;
+  }
+
+  /* IDをコピー */
+  #areaDetailPopupContent > div:last-child .popup-admin-btn{
+    margin-top:3px !important;
+    padding:3px 6px !important;
+    font-size:10px !important;
+    line-height:1.25;
+  }
+
+  .update-status{
+    top:42px;
+    font-size:10px;
+    padding:4px 8px;
+  }
+
+  .flyer-overlay{
+    padding:12px;
+  }
+
+  .flyer-card{
+    max-width:92vw;
+    max-height:90vh;
+
+    padding:
+      38px
+      8px
+      8px;
+  }
+
+  .flyer-main-image{
+    max-height:
+      calc(90vh - 55px);
+  }
+
+  .flyer-guide{
+    top:10px;
+    left:10px;
+    right:45px;
+
+    font-size:11px;
+  }
+
+  .flyer-close-button{
+    width:27px;
+    height:27px;
+
+    font-size:20px;
+    line-height:27px;
+  }
+
+  .activity-report-overlay{
+    padding:12px;
+  }
+
+  .activity-report-card{
+    width:92vw;
+    max-height:90vh;
+
+    padding:20px 14px 16px;
+  }
+
+  .activity-report-title{
+    margin:3px 28px 12px;
+
+    font-size:18px;
+  }
+
+  .activity-report-list{
+    font-size:14px;
+    line-height:1.9;
+  }
+
+  .activity-report-item{
+    padding:7px 1px;
+  }
+
+  .activity-report-close{
+    width:27px;
+    height:27px;
+
+    font-size:20px;
+    line-height:27px;
+  }
+
+  .activity-report-thanks{
+    font-size:12px;
+    margin-bottom:10px;
+  }
+   
+  .activity-report-total{
+    font-size:15px;
+    margin-bottom:12px;
+  }
+}
 
 
 /* パソコンのみの設定 */
@@ -853,31 +2047,15 @@ body{
     height:260px;
   }
 
-  .id-search-panel{
-    top:450px;
-    padding-top:2px;
-    padding-bottom:2px;
-    display:flex;
-    justify-content:flex-end;
-    align-items:center;
-    gap:4px;
+  .area-search-panel{
+    bottom:120px;
+    top:auto;
+    padding:2px 4px;
   }
 
-  /* 検索結果があるときだけ左へ拡張 */
-  .id-search-panel.has-result{
-    width:260px;              /* 左へ伸ばす */
-    display:flex;
-    justify-content:flex-end;
-    align-items:center;
-    gap:6px;
-  }
-
-  /* 検索結果を左端に表示 */
-  .id-search-panel.has-result .id-search-count{
-    order:-1;
-    width:auto;
-    margin-right:auto;
-    text-align:left;
+  .area-search-panel.has-result{
+    bottom:120px;
+    top:auto;
   }
 
   .leaflet-draw-draw-polygon{
@@ -916,12 +2094,23 @@ body{
   }
 
   .leaflet-bottom.leaflet-left{
-    bottom:60px;   /* 上へ移動（数値を増やすほど上） */
+    bottom:55px;   /* 上へ移動（数値を増やすほど上） */
     left:10px;     /* 右へ移動（数値を増やすほど右） */
+  }
+
+  .update-status{
+    top:72px;
   }
 
 }
 /* パソコンのみの設定 */
+
+.area-detail-request-pending{
+  color:#d00000;
+  font-size:13px;
+  font-weight:bold;
+  white-space:nowrap;
+}
 
 
 </style>
@@ -929,6 +2118,28 @@ body{
 
 <body>
 <div id="map"></div>
+
+<!-- 県全体ページ：作図済みエリア詳細（閲覧専用） -->
+<div id="areaDetailPopup" class="area-detail-popup" aria-hidden="true">
+  <div id="areaDetailDragHandle" class="area-detail-drag-handle">
+    <div class="area-detail-drag-label">
+      <span class="area-detail-title">エリア詳細</span>
+      <span class="area-detail-move-hint">
+        <span class="area-detail-grip">⠿</span>
+        ここを持って移動できます
+      </span>
+    </div>
+
+    <button
+      id="areaDetailCloseButton"
+      type="button"
+      class="area-detail-close"
+      aria-label="詳細を閉じる"
+    >×</button>
+  </div>
+
+  <div id="areaDetailPopupContent"></div>
+</div>
 
 <div id="confirmOverlay" class="confirm-overlay" style="display:none;">
   <div class="confirm-box">
@@ -943,6 +2154,48 @@ body{
   </div>
 </div>
 
+<div
+  id="cityCandidateOverlay"
+  class="confirm-overlay"
+  style="display:none;"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="cityCandidateTitle"
+>
+  <div class="city-candidate-box">
+    <div id="cityCandidateTitle" class="city-candidate-title">
+      市町村を選択
+    </div>
+    <div id="cityCandidateList" class="city-candidate-list"></div>
+    <button
+      id="cityCandidateCancel"
+      type="button"
+      class="city-candidate-cancel"
+    >キャンセル</button>
+  </div>
+</div>
+
+<div
+  id="areaChoiceOverlay"
+  class="confirm-overlay"
+  style="display:none;"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="areaChoiceTitle"
+>
+  <div class="area-choice-box">
+    <div id="areaChoiceTitle" class="area-choice-title">
+      確認するエリアを選択
+    </div>
+    <div id="areaChoiceList" class="area-choice-list"></div>
+    <button
+      id="areaChoiceCancel"
+      type="button"
+      class="area-choice-cancel"
+    >キャンセル</button>
+  </div>
+</div>
+
 <div id="cityMovePanel" class="city-move-panel" style="display:none;">
   <div id="cityMoveText" class="city-move-text"></div>
   <button id="cityMoveButton" type="button">市町村ページへ移動</button>
@@ -952,6 +2205,21 @@ body{
 <div id="parentNotice">
   ※エリア作図は<br>
   　各市町村ページにて
+
+  <div class="parent-notice-sub">
+    各市町村ページでは現在地情報が取得できます
+  </div>
+</div>
+
+<!-- 市の検索ボックス -->
+<div class="panel city-search-panel">
+  <input
+    id="citySearchInput"
+    type="text"
+    placeholder="市町村名で検索"
+    onkeydown="if(event.key === 'Enter') searchCity()"
+  >
+  <button type="button" onclick="searchCity()">検索</button>
 </div>
 
 <!-- スマホ専用：中央ポイント作図 -->
@@ -968,6 +2236,149 @@ body{
 
 
 <div class="map-center-cross" id="mapCenterCross">＋</div>
+
+<!-- エリア検索フォーム -->
+<div id="areaSearchModal" class="modal-bg" style="display:none;">
+  <form id="areaSearchForm" class="modal-box area-search-modal-box">
+    <h3>エリア検索</h3>
+    <p class="area-search-help">
+      入力した条件をすべて満たすエリアを、地図上に黄色いラインで表示します。
+    </p>
+    <div id="areaSearchError" class="error-text"></div>
+
+    <label>市町村</label>
+    <input
+      id="areaSearchCity"
+      type="text"
+      placeholder="市町村名を入力（未入力も可）"
+      autocomplete="off"
+    >
+
+    <label>種類</label>
+    <select id="areaSearchType">
+      <option value="">すべて</option>
+      <option value="配布予定">配布予定</option>
+      <option value="配布済">配布済</option>
+    </select>
+
+    <label>実施日</label>
+
+    <div class="area-search-range-label">開始日</div>
+    <div class="date-row area-search-date-row">
+      <select id="areaSearchStartYear">
+        <option value="">年</option>
+      </select>
+
+      <select id="areaSearchStartMonth">
+        <option value="">月</option>
+      </select>
+
+      <select id="areaSearchStartDay">
+        <option value="">日</option>
+      </select>
+
+      <div
+        class="area-search-calendar-button"
+        title="カレンダーから開始日を選択"
+      >
+        <span aria-hidden="true">📅</span>
+        <input
+          id="areaSearchStartCalendar"
+          type="date"
+          aria-label="カレンダーから開始日を選択"
+        >
+      </div>
+    </div>
+
+    <div class="area-search-range-label">終了日</div>
+    <div class="date-row area-search-date-row">
+      <select id="areaSearchEndYear">
+        <option value="">年</option>
+      </select>
+
+      <select id="areaSearchEndMonth">
+        <option value="">月</option>
+      </select>
+
+      <select id="areaSearchEndDay">
+        <option value="">日</option>
+      </select>
+
+      <div
+        class="area-search-calendar-button"
+        title="カレンダーから終了日を選択"
+      >
+        <span aria-hidden="true">📅</span>
+        <input
+          id="areaSearchEndCalendar"
+          type="date"
+          aria-label="カレンダーから終了日を選択"
+        >
+      </div>
+    </div>
+
+    <label>担当者</label>
+    <div class="area-search-person-mode">
+      <label>
+        <input type="radio" name="areaSearchPersonMode" value="select" checked>
+        選択
+      </label>
+      <label>
+        <input type="radio" name="areaSearchPersonMode" value="manual">
+        手入力
+      </label>
+    </div>
+    <select id="areaSearchPersonSelect">
+      <option value="">指定しない</option>
+    </select>
+    <input
+      id="areaSearchPersonManual"
+      type="text"
+      placeholder="担当者名を入力"
+      autocomplete="off"
+      style="display:none;"
+    >
+
+    <label>枚数</label>
+    <div class="area-search-count-row">
+      <input id="areaSearchMinCount" type="number" min="0" placeholder="最小">
+      <span>～</span>
+      <input id="areaSearchMaxCount" type="number" min="0" placeholder="最大">
+    </div>
+
+    <label>キーワード <span>（全項目・部分一致）</span></label>
+    <input
+      id="areaSearchKeyword"
+      type="text"
+      placeholder="未入力も可"
+      autocomplete="off"
+    >
+
+    <label>エリアID <span>（部分一致）</span></label>
+    <input
+      id="areaSearchId"
+      type="text"
+      placeholder="未入力も可"
+      autocomplete="off"
+    >
+
+    <div class="modal-buttons area-search-modal-buttons">
+  <button type="button"
+          class="area-search-clear-button"
+          onclick="resetAreaSearchFields()">
+    条件をクリア
+  </button>
+
+  <button type="submit" class="area-search-submit-button">
+    検索
+  </button>
+
+  <button type="button" onclick="closeAreaSearchModal()">
+    キャンセル
+  </button>
+</div>
+  </form>
+</div>
 
 
 <!-- 配布エリア登録フォーム -->
@@ -1136,6 +2547,85 @@ body{
 
 <div class="panel title" id="titleBox">読み込み中...</div>
 
+<div id="updateStatus" class="update-status">
+  最新情報に更新中です…
+</div>
+
+<!-- チラシ確認 -->
+<button
+  id="flyerThumbnail"
+  class="flyer-thumbnail"
+  type="button"
+  title="配布対象のチラシを見る"
+  aria-label="配布対象のチラシを見る"
+>
+  <img src="flyer.jpg" alt="配布対象チラシ">
+</button>
+
+<div id="flyerOverlay" class="flyer-overlay" aria-hidden="true">
+
+  <div id="flyerCard" class="flyer-card">
+
+    <button
+      id="flyerCloseButton"
+      class="flyer-close-button"
+      type="button"
+      aria-label="チラシを閉じる"
+    >×</button>
+
+    <div class="flyer-guide">
+      このチラシの配布エリア共有マップです
+    </div>
+
+    <img
+      src="flyer.jpg"
+      class="flyer-main-image"
+      alt="配布対象チラシ"
+    >
+
+  </div>
+
+</div>
+
+<!-- みんなの活動報告 -->
+<div
+  id="activityReportOverlay"
+  class="activity-report-overlay"
+  aria-hidden="true"
+>
+  <div
+    id="activityReportCard"
+    class="activity-report-card"
+  >
+
+    <button
+      id="activityReportCloseButton"
+      class="activity-report-close"
+      type="button"
+      aria-label="活動報告を閉じる"
+    >×</button>
+
+    <div class="activity-report-title">
+      ～みんなの活動報告～
+    </div>
+
+    <div class="activity-report-thanks">
+      いつもありがとうございます！
+    </div>
+
+    <div class="activity-report-total">
+      東京都全域の配布完了枚数：
+      <span id="activityReportTotalCount" class="activity-report-total-count">0枚</span>
+    </div>
+
+    <div
+      id="activityReportList"
+      class="activity-report-list"
+    ></div>
+
+  </div>
+</div>
+
 <div class="panel contact-panel">
   <button onclick="openContactForm()">管理者へ連絡</button>
 </div>
@@ -1207,22 +2697,1430 @@ body{
   <div class="scroll-hint">▼スクロールできます</div>
 </div>
 
-<div class="panel id-search-panel">
-  <input id="idSearchInput" type="text" placeholder="ID検索">
-  <button onclick="searchAreaById()">検索</button>
-  <div id="idSearchResultCount" class="id-search-count"></div>
+<div class="panel area-search-panel" id="areaSearchPanel">
+  <button id="areaSearchOpenButton" type="button" onclick="openAreaSearchModal()">
+    エリア検索
+  </button>
+  <div id="areaSearchResultSummary" class="area-search-result-summary" style="display:none;">
+    <div id="areaSearchResultCount" class="area-search-count"></div>
+    <div class="area-search-result-buttons">
+      <button type="button" onclick="openAreaSearchModal()">検索条件を変更</button>
+      <button type="button" onclick="clearAreaSearch()">検索解除</button>
+    </div>
+  </div>
 </div>
 
 <div class="panel reset-panel">
-  <button onclick="resetView()">全体表示に戻る</button>
+  <button onclick="resetView()">東京都を全体表示</button>
 </div>
 
 <div class="panel parent-link-panel" id="parentLinkPanel">
   <button onclick="goParentPage()">東京都全体へ戻る</button>
 </div>
 
+
+
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA-tmYZZc0CdCLb8XmyNIKAqVVK1ADnI96Jx-5djn6Lc1LxcZRFyKEK37C9nKRfhvL/exec";
+const SCRIPT_URL = window.MAP_SCRIPT_URL;
+
+const INDEX_PAGE_TITLE =
+  "【東京都】東京都知事リコール周知用チラシ　配布エリア共有マップ";
+
+// Apps Scriptの通信完了を待たずにタイトルを表示
+document.title = INDEX_PAGE_TITLE;
+document.getElementById("titleBox").textContent =
+  INDEX_PAGE_TITLE;
+
+// 初期データ通信は20秒で区切り、失敗時は1回だけ自動再試行する
+async function fetchInitialJson(url) {
+
+  let lastError;
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function(){
+      controller.abort();
+    }, 20000);
+
+    try {
+
+      const response = await fetch(url, {
+        signal:controller.signal
+      });
+
+      if(!response.ok){
+        throw new Error("HTTP " + response.status);
+      }
+
+      return await response.json();
+
+    } catch(error) {
+
+      lastError = error;
+
+      if(attempt < 2){
+        await new Promise(function(resolve){
+          setTimeout(resolve, 1000);
+        });
+      }
+
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+  }
+
+  throw lastError;
+}
+
+// headで始めた先行通信を優先し、失敗時だけ通常の再試行処理へ戻す
+async function getInitialBoundaryData(){
+  const early = window.__initialBoundaryDataPromise
+    ? await window.__initialBoundaryDataPromise
+    : null;
+  return early || fetchInitialJson("tokyo.geojson");
+}
+
+async function getInitialAreaData(){
+  const early = window.__initialAreaDataPromise
+    ? await window.__initialAreaDataPromise
+    : null;
+  return early || fetchInitialJson(SCRIPT_URL);
+}
+
+
+
+/* =========================
+   ブラウザ復帰時の最新情報更新
+========================= */
+
+const AREA_REFRESH_INTERVAL =
+  60 * 60 * 1000; // 1時間
+
+let lastAreaRefreshAt =
+  Date.now();
+
+let areaRefreshInProgress =
+  false;
+
+
+/*
+  初期表示用Promiseを使わず、
+  必ずApps Scriptへ最新版を取りに行く
+*/
+function getFreshAreaData(){
+
+  return fetchInitialJson(
+    SCRIPT_URL
+  );
+
+}
+
+
+async function refreshAreaDataIfNeeded(){
+
+  if(areaRefreshInProgress){
+    return;
+  }
+
+  if(
+    Date.now() -
+    lastAreaRefreshAt <
+    AREA_REFRESH_INTERVAL
+  ){
+    return;
+  }
+
+
+  areaRefreshInProgress = true;
+
+  showUpdatingStatus();
+
+  try{
+
+    const json =
+      await getFreshAreaData();
+
+    renderAreaData(json);
+
+    saveAreaBrowserCache(json);
+
+    areaSearchDataReady = true;
+
+    lastAreaRefreshAt =
+      Date.now();
+
+    showUpdateComplete();
+
+  }catch(error){
+
+    console.error(
+      "最新情報の再取得に失敗しました",
+      error
+    );
+
+    showUpdateError();
+
+    showInitialLoadError(
+      "最新情報を取得できませんでした。<br>" +
+      "ページを再読み込みして最新情報を取得します。"
+    );
+
+  }finally{
+
+    areaRefreshInProgress = false;
+
+  }
+
+}
+
+
+/*
+  Safari / Chromeへ戻ってきた時に確認
+*/
+document.addEventListener(
+  "visibilitychange",
+  function(){
+
+    if(
+      document.visibilityState ===
+      "visible"
+    ){
+
+      refreshAreaDataIfNeeded();
+
+    }
+
+  }
+);
+
+/* =========================
+   ブラウザ側の配布エリアキャッシュ
+========================= */
+
+const AREA_BROWSER_CACHE_KEY =
+  "tokyoMap_indexAreaCache_v1";
+
+/* 最大24時間だけ前回データを利用 */
+const AREA_BROWSER_CACHE_MAX_AGE =
+  7 * 24 * 60 * 60 * 1000;
+
+
+function saveAreaBrowserCache(json){
+
+  try{
+
+    if(
+      !json ||
+      !Array.isArray(json.areas)
+    ){
+      return;
+    }
+
+    localStorage.setItem(
+      AREA_BROWSER_CACHE_KEY,
+      JSON.stringify({
+        savedAt:Date.now(),
+        data:json
+      })
+    );
+
+  }catch(error){
+
+    /* 保存できなくても通常表示には影響させない */
+    console.warn(
+      "ブラウザキャッシュの保存をスキップしました",
+      error
+    );
+
+  }
+}
+
+
+function loadAreaBrowserCache(){
+
+  try{
+
+    const text =
+      localStorage.getItem(
+        AREA_BROWSER_CACHE_KEY
+      );
+
+    if(!text){
+      return null;
+    }
+
+    const cache = JSON.parse(text);
+
+    if(
+      !cache ||
+      !cache.savedAt ||
+      !cache.data ||
+      !Array.isArray(cache.data.areas)
+    ){
+      localStorage.removeItem(
+        AREA_BROWSER_CACHE_KEY
+      );
+      return null;
+    }
+
+    /* 古すぎるデータは使わない */
+    if(
+      Date.now() - cache.savedAt >
+      AREA_BROWSER_CACHE_MAX_AGE
+    ){
+      localStorage.removeItem(
+        AREA_BROWSER_CACHE_KEY
+      );
+      return null;
+    }
+
+    return cache.data;
+
+  }catch(error){
+
+    /* 壊れたキャッシュは削除して通常読込みへ */
+    try{
+      localStorage.removeItem(
+        AREA_BROWSER_CACHE_KEY
+      );
+    }catch(e){}
+
+    return null;
+  }
+}
+
+function showUpdatingStatus(){
+
+  const status =
+    document.getElementById(
+      "updateStatus"
+    );
+
+  if(!status) return;
+
+  status.className =
+    "update-status";
+
+  status.textContent =
+    "最新情報に更新中です…";
+}
+
+/* =========================
+   配布対象チラシ表示
+========================= */
+
+/*
+  自動で大きく表示する頻度：
+  24時間に1回
+*/
+const FLYER_AUTO_SHOW_INTERVAL =
+  24 * 60 * 60 * 1000;
+
+
+/*
+  チラシを変更した時は
+  v1 → v2 のように変更する。
+
+  そうすると全利用者に
+  新しいチラシが再表示される。
+*/
+const FLYER_VIEW_KEY =
+  "tokyoMap_flyerView_202609_v1";
+
+/* =========================
+   みんなの活動報告
+========================= */
+
+
+/*
+  表示対象データ
+*/
+let activityReportRows = [];
+
+let activityReportTotalCount = 0;
+
+
+/*
+  スプレッドシートデータを
+  一度取得できたかどうか
+*/
+let activityReportDataReady = false;
+
+
+/*
+  チラシを閉じた後、
+  活動報告の表示待ちかどうか
+*/
+let activityReportPendingAfterFlyer = false;
+
+
+/*
+  日付データをDateへ変換
+*/
+function parseActivityDate(value){
+
+  if(!value){
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  if(!text){
+    return null;
+  }
+
+
+  /*
+    Apps Scriptから届くISO形式を先に処理
+    例：2026-11-19T15:00:00.000Z
+    日本時間では2026年11月20日
+  */
+  if(
+    /^\d{4}-\d{1,2}-\d{1,2}T/.test(text)
+  ){
+
+    const isoDate = new Date(text);
+
+    if(
+      !Number.isNaN(
+        isoDate.getTime()
+      )
+    ){
+      return isoDate;
+    }
+
+  }
+
+
+  /*
+    2026/11/20
+    2026-11-20
+    のような日付だけの形式
+  */
+  const match = text.match(
+    /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/
+  );
+
+  if(match){
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+
+    const date = new Date(
+      year,
+      month - 1,
+      day
+    );
+
+    if(
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    ){
+      return date;
+    }
+
+  }
+
+
+  /*
+    その他の日時形式
+  */
+  const date = new Date(text);
+
+  if(
+    Number.isNaN(
+      date.getTime()
+    )
+  ){
+    return null;
+  }
+
+  return date;
+}
+
+
+/*
+  9月25日 の形へ
+*/
+function formatActivityDate(date){
+
+  return new Intl.DateTimeFormat(
+    "ja-JP",
+    {
+      timeZone: "Asia/Tokyo",
+      month: "long",
+      day: "numeric"
+    }
+  ).format(date);
+
+}
+
+
+/*
+  枚数表示
+*/
+function formatActivityCount(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    String(value).trim() === ""
+  ){
+    return "枚数未記載";
+  }
+
+  const text =
+    String(value)
+      .replace(/,/g, "")
+      .trim();
+
+  const number =
+    Number(text);
+
+  if(
+    Number.isFinite(number)
+  ){
+
+    return (
+      number.toLocaleString("ja-JP") +
+      "枚"
+    );
+
+  }
+
+  return (
+    String(value).trim() +
+    "枚"
+  );
+}
+
+
+/*
+  HTMLに表示する文字を安全にする
+*/
+function escapeActivityHtml(value){
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/*
+  直近2週間の
+  配布済エリアを抽出
+*/
+function prepareActivityReport(areas){
+
+  activityReportDataReady = true;
+
+
+  if(
+    !Array.isArray(areas)
+  ){
+
+    activityReportRows = [];
+    activityReportTotalCount = 0;
+
+    tryOpenActivityReportAfterFlyer();
+
+    return;
+  }
+
+  activityReportTotalCount = areas.reduce(function(total, row){
+    if(!row || row["種類"] !== "配布済") return total;
+    const count = getAreaCountNumber(row["枚数"]);
+    return count !== null && count >= 0 ? total + count : total;
+  }, 0);
+
+
+  const now =
+    new Date();
+
+
+  /*
+    14日前の0時から対象
+  */
+  const cutoff =
+    new Date();
+
+  cutoff.setDate(
+    cutoff.getDate() - 14
+  );
+
+  cutoff.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+
+  const end =
+    new Date();
+
+  end.setHours(
+    23,
+    59,
+    59,
+    999
+  );
+
+
+  activityReportRows =
+    areas
+      .filter(function(row){
+
+        return (
+          row &&
+          row["種類"] === "配布済"
+        );
+
+      })
+      .map(function(row){
+
+        /*
+          実施日が最優先
+        */
+        const eventDate =
+          parseActivityDate(
+            row["実施日"]
+          );
+
+
+        /*
+          実施日が無い時だけ
+          登録日時を見る
+        */
+        const registeredDate =
+          eventDate
+            ? null
+            : parseActivityDate(
+                row["登録日時"]
+              );
+
+
+        const baseDate =
+          eventDate ||
+          registeredDate;
+
+
+        if(!baseDate){
+          return null;
+        }
+
+
+        if(
+          baseDate < cutoff ||
+          baseDate > end
+        ){
+          return null;
+        }
+
+
+        const city =
+          String(
+            row["市町村"] || ""
+          ).trim() ||
+          "市町村未記載";
+
+
+        return {
+
+          dateLabel:
+            eventDate
+              ? formatActivityDate(
+                  eventDate
+                )
+              : "某日",
+
+          city:
+            city,
+
+          countLabel:
+            formatActivityCount(
+              row["枚数"]
+            ),
+
+          /*
+            並び替え用。
+            実施日なしの場合は登録日時。
+          */
+          sortTime:
+            baseDate.getTime()
+
+        };
+
+      })
+      .filter(Boolean)
+      .sort(function(a, b){
+
+        return (
+          b.sortTime -
+          a.sortTime
+        );
+
+      });
+
+  const reportOverlay = document.getElementById("activityReportOverlay");
+  if(reportOverlay && reportOverlay.classList.contains("open")){
+    renderActivityReport();
+  }
+
+
+  /*
+    チラシをすでに閉じていて
+    データ待ちだった場合
+  */
+  tryOpenActivityReportAfterFlyer();
+}
+
+
+/*
+  活動報告をHTML化
+*/
+function renderActivityReport(){
+
+  const totalElement = document.getElementById("activityReportTotalCount");
+  if(totalElement){
+    totalElement.textContent =
+      activityReportTotalCount.toLocaleString("ja-JP") + "枚";
+  }
+
+  const list =
+    document.getElementById(
+      "activityReportList"
+    );
+
+  if(!list){
+    return;
+  }
+
+
+  list.innerHTML =
+    (activityReportRows.length ? activityReportRows
+      .map(function(item){
+
+        return (
+          '<div class="activity-report-item">' +
+
+            '<strong>' +
+              escapeActivityHtml(
+                item.dateLabel
+              ) +
+            '</strong>' +
+
+            "　" +
+
+            escapeActivityHtml(
+              item.city
+            ) +
+
+            "　" +
+
+            escapeActivityHtml(
+              item.countLabel
+            ) +
+
+          "</div>"
+        );
+
+      })
+      .join("") : '<div class="activity-report-item">直近2週間の活動報告はありません。</div>');
+}
+
+
+/*
+  活動報告を開く
+*/
+function openActivityReport(){
+  renderActivityReport();
+
+
+  const overlay =
+    document.getElementById(
+      "activityReportOverlay"
+    );
+
+
+  if(!overlay){
+    return;
+  }
+
+
+  overlay.classList.add(
+    "open"
+  );
+
+  overlay.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+
+  requestAnimationFrame(
+    function(){
+
+      requestAnimationFrame(
+        function(){
+
+          overlay.classList.add(
+            "visible"
+          );
+
+        }
+      );
+
+    }
+  );
+}
+
+
+/*
+  活動報告を閉じる
+*/
+function closeActivityReport(){
+
+  const overlay =
+    document.getElementById(
+      "activityReportOverlay"
+    );
+
+
+  if(!overlay){
+    return;
+  }
+
+
+  overlay.classList.remove(
+    "visible"
+  );
+
+
+  setTimeout(function(){
+
+    overlay.classList.remove(
+      "open"
+    );
+
+    overlay.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+  }, 250);
+}
+
+
+/*
+  チラシを閉じた後にだけ
+  活動報告を出す
+*/
+function tryOpenActivityReportAfterFlyer(){
+
+  if(
+    !activityReportPendingAfterFlyer
+  ){
+    return;
+  }
+
+
+  /*
+    まだスプレッドシートの
+    データ取得前なら待つ
+  */
+  if(
+    !activityReportDataReady
+  ){
+    return;
+  }
+
+
+  activityReportPendingAfterFlyer =
+    false;
+
+  setTimeout(
+    openActivityReport,
+    120
+  );
+}
+
+
+/*
+  閉じるボタン準備
+*/
+function initActivityReport(){
+
+  const closeButton =
+    document.getElementById(
+      "activityReportCloseButton"
+    );
+
+
+  if(closeButton){
+
+    closeButton.addEventListener(
+      "click",
+      closeActivityReport
+    );
+
+  }
+
+}
+
+
+/*
+  HTML準備完了後に開始
+*/
+if(
+  document.readyState ===
+  "loading"
+){
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initActivityReport
+  );
+
+}else{
+
+  initActivityReport();
+
+}
+
+
+function positionFlyerThumbnail(){
+
+  const title =
+    document.getElementById(
+      "titleBox"
+    );
+
+  const thumb =
+    document.getElementById(
+      "flyerThumbnail"
+    );
+
+  if(!title || !thumb){
+    return;
+  }
+
+  const rect =
+    title.getBoundingClientRect();
+
+  /*
+    タイトルとほぼ同じ高さ
+  */
+  const height =
+    Math.max(
+      24,
+      Math.round(rect.height)
+    );
+
+  const width =
+    Math.round(
+      height * .72
+    );
+
+  thumb.style.height =
+    height + "px";
+
+  thumb.style.width =
+    width + "px";
+
+
+  /*
+    基本はタイトルの右横
+  */
+  let left =
+    rect.right + 8;
+
+  /*
+    画面からはみ出す場合だけ
+    右端に収める
+  */
+  const maxLeft =
+    window.innerWidth -
+    width -
+    6;
+
+  if(left > maxLeft){
+    left = maxLeft;
+  }
+
+  thumb.style.left =
+    left + "px";
+
+  thumb.style.top =
+    (
+      rect.top +
+      (rect.height - height) / 2
+    ) + "px";
+}
+
+
+function showFlyerThumbnail(){
+
+  const thumb =
+    document.getElementById(
+      "flyerThumbnail"
+    );
+
+  if(!thumb) return;
+
+  positionFlyerThumbnail();
+
+  thumb.classList.add(
+    "visible"
+  );
+}
+
+
+function hideFlyerThumbnail(){
+
+  const thumb =
+    document.getElementById(
+      "flyerThumbnail"
+    );
+
+  if(!thumb) return;
+
+  thumb.classList.remove(
+    "visible"
+  );
+}
+
+
+function openFlyerPreview(){
+
+  const overlay =
+    document.getElementById(
+      "flyerOverlay"
+    );
+
+  const card =
+    document.getElementById(
+      "flyerCard"
+    );
+
+  if(!overlay || !card){
+    return;
+  }
+
+  hideFlyerThumbnail();
+
+  card.classList.remove(
+    "flyer-closing"
+  );
+
+  card.style.removeProperty(
+    "--flyer-dx"
+  );
+
+  card.style.removeProperty(
+    "--flyer-dy"
+  );
+
+  card.style.removeProperty(
+    "--flyer-scale"
+  );
+
+  overlay.classList.add(
+    "open"
+  );
+
+  overlay.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
+  requestAnimationFrame(
+    function(){
+
+      requestAnimationFrame(
+        function(){
+
+          overlay.classList.add(
+            "visible"
+          );
+
+        }
+      );
+
+    }
+  );
+}
+
+
+function closeFlyerPreview(){
+
+  const overlay =
+    document.getElementById(
+      "flyerOverlay"
+    );
+
+  const card =
+    document.getElementById(
+      "flyerCard"
+    );
+
+  const thumb =
+    document.getElementById(
+      "flyerThumbnail"
+    );
+
+  if(
+    !overlay ||
+    !card ||
+    !thumb
+  ){
+    return;
+  }
+
+
+  /*
+    まずタイトル横の
+    最終位置を計算
+  */
+  positionFlyerThumbnail();
+
+
+  const cardRect =
+    card.getBoundingClientRect();
+
+  const thumbRect =
+    thumb.getBoundingClientRect();
+
+
+  /*
+    大きなチラシの中心 →
+    サムネイルの中心
+  */
+  const dx =
+    (
+      thumbRect.left +
+      thumbRect.width / 2
+    ) -
+    (
+      cardRect.left +
+      cardRect.width / 2
+    );
+
+  const dy =
+    (
+      thumbRect.top +
+      thumbRect.height / 2
+    ) -
+    (
+      cardRect.top +
+      cardRect.height / 2
+    );
+
+
+  const scale =
+    Math.min(
+      thumbRect.width /
+        cardRect.width,
+
+      thumbRect.height /
+        cardRect.height
+    );
+
+
+  card.style.setProperty(
+    "--flyer-dx",
+    dx + "px"
+  );
+
+  card.style.setProperty(
+    "--flyer-dy",
+    dy + "px"
+  );
+
+  card.style.setProperty(
+    "--flyer-scale",
+    scale
+  );
+
+
+  card.classList.add(
+    "flyer-closing"
+  );
+
+
+  /*
+    自動表示した日時を保存
+  */
+  try{
+
+    localStorage.setItem(
+      FLYER_VIEW_KEY,
+      String(Date.now())
+    );
+
+  }catch(error){
+
+    console.warn(
+      "チラシ表示日時を保存できませんでした",
+      error
+    );
+
+  }
+
+
+  /*
+    シュッと縮小した後、
+    小さいチラシに切り替える
+  */
+  setTimeout(function(){
+
+    overlay.classList.remove(
+      "visible",
+      "open"
+    );
+
+    overlay.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
+    card.classList.remove(
+      "flyer-closing"
+    );
+
+    showFlyerThumbnail();
+
+    /*
+      続けて
+      「みんなの活動報告」を表示
+    */
+    activityReportPendingAfterFlyer =
+      true;
+
+    tryOpenActivityReportAfterFlyer();
+
+  }, 450);
+}
+
+
+function shouldAutoShowFlyer(){
+
+  try{
+
+    const lastShown =
+      Number(
+        localStorage.getItem(
+          FLYER_VIEW_KEY
+        )
+      );
+
+    if(!lastShown){
+      return true;
+    }
+
+    return (
+      Date.now() -
+      lastShown
+    ) >=
+      FLYER_AUTO_SHOW_INTERVAL;
+
+  }catch(error){
+
+    /*
+      localStorageが使えない場合も
+      サイト自体は止めない
+    */
+    return true;
+  }
+}
+
+
+function initFlyerPreview(){
+
+  const thumb =
+    document.getElementById(
+      "flyerThumbnail"
+    );
+
+  const closeButton =
+    document.getElementById(
+      "flyerCloseButton"
+    );
+
+  if(
+    !thumb ||
+    !closeButton
+  ){
+    return;
+  }
+
+
+  thumb.addEventListener(
+    "click",
+    openFlyerPreview
+  );
+
+
+  closeButton.addEventListener(
+    "click",
+    closeFlyerPreview
+  );
+
+
+  /*
+    タイトルサイズに合わせて
+    サムネイル位置を調整
+  */
+  positionFlyerThumbnail();
+
+
+  window.addEventListener(
+    "resize",
+    positionFlyerThumbnail
+  );
+
+
+  /*
+    「読み込み中...」から
+    正式タイトルに変わった時にも
+    自動で位置を合わせる
+  */
+  const title =
+    document.getElementById(
+      "titleBox"
+    );
+
+  if(
+    title &&
+    window.ResizeObserver
+  ){
+
+    const observer =
+      new ResizeObserver(
+        positionFlyerThumbnail
+      );
+
+    observer.observe(title);
+  }
+
+
+  /*
+    24時間経っていれば
+    起動時に大きく表示。
+
+    それ以外は最初から
+    タイトル横へ。
+  */
+  if(
+    shouldAutoShowFlyer()
+  ){
+
+    setTimeout(
+      openFlyerPreview,
+      600
+    );
+
+  }else{
+
+    showFlyerThumbnail();
+
+  }
+}
+
+
+/*
+  HTML準備完了後に開始
+*/
+if(
+  document.readyState ===
+  "loading"
+){
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    initFlyerPreview
+  );
+
+}else{
+
+  initFlyerPreview();
+
+}
+
+
+function showUpdateComplete(){
+
+  const status =
+    document.getElementById(
+      "updateStatus"
+    );
+
+  if(!status) return;
+
+  status.className =
+    "update-status done";
+
+  status.textContent =
+    "更新完了！";
+
+  setTimeout(function(){
+
+    status.classList.add(
+      "hide"
+    );
+
+  }, 3000);
+}
+
+
+function showUpdateError(){
+
+  const status =
+    document.getElementById(
+      "updateStatus"
+    );
+
+  if(!status) return;
+
+  status.className =
+    "update-status error";
+
+  status.textContent =
+    "最新情報を取得できませんでした";
+
+  setTimeout(function(){
+
+    status.classList.add(
+      "hide"
+    );
+
+  }, 5000);
+}
+
+let initialLoadErrorShown = false;
+
+function showInitialLoadError(message) {
+
+  if(initialLoadErrorShown) return;
+  initialLoadErrorShown = true;
+
+  openConfirm(
+    message +
+    "<br><br>通信環境を確認して、OKを押してください。<br>ページを再読み込みします。",
+    function(){
+      location.reload();
+    },
+    null,
+    "閉じる"
+  );
+}
 
 const params = new URLSearchParams(location.search);
 
@@ -1230,8 +4128,36 @@ const CURRENT_CITY = params.get("city") || "";
 
 const IS_PARENT_PAGE = !CURRENT_CITY;
 
+/*
+  東京都の初期表示では除外する離島
+  データ自体は残す
+*/
+const INITIAL_VIEW_EXCLUDED_CITIES = new Set([
+  "大島町",
+  "利島村",
+  "新島村",
+  "神津島村",
+  "三宅村",
+  "御蔵島村",
+  "八丈町",
+  "青ヶ島村",
+  "小笠原村"
+]);
+
+
+
+const INDEX_SELECTED_AREA_KEY =
+  "selectedAreaFromIndex";
+
 const isTouchDevice = window.matchMedia("(max-width:600px) and (pointer:coarse)").matches;
-const map = L.map("map", { zoomControl:false }).setView([35.70,139.55], 10);
+const map = L.map("map", {zoomControl:false}).setView([35.68, 139.55], 9);
+
+map.createPane("drawAreaPane");
+map.getPane("drawAreaPane").style.zIndex = 450;
+
+map.createPane("cityLabelPane");
+map.getPane("cityLabelPane").style.zIndex = 460;
+map.getPane("cityLabelPane").style.pointerEvents = "none";
 
 L.control.zoom({ position:"bottomleft" }).addTo(map);
 
@@ -1239,15 +4165,23 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution:"©OpenStreetMap"
 }).addTo(map);
 
+
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 
 const plannedItemsById = {};
 const areaItemsById = {};
 const areaLayersById = {};
+let areaSearchDataReady = false;
+let areaSearchActive = false;
+let activeAreaSearchIds = new Set();
+let pendingAreaChoiceHandler = null;
+let pendingAreaChoiceIds = [];
+let areaChoicePreviewActive = false;
 
 let currentRequestId = null;
 let confirmCallback = null;
+let confirmCancelCallback = null;
 let areaFormResolver = null;
 let doneFormResolver = null;
 let mobileDrawing = false;
@@ -1258,43 +4192,23 @@ let ignoreNextClick = false;
 let selectedCityName = null;
 let selectedCityUrl = null;
 
-// =========================
-// Leaflet Draw 日本語化
-// =========================
-L.drawLocal.draw.toolbar.buttons.polygon = "エリアを作図";
-L.drawLocal.draw.handlers.polygon.tooltip.start = "地図をクリックして配布エリアの1点目を決めてください";
-L.drawLocal.draw.handlers.polygon.tooltip.cont = "続けてクリックして範囲を囲んでください。最初の点をクリックすると範囲が確定します";
-L.drawLocal.draw.handlers.polygon.tooltip.end = "最初の点をクリックすると範囲が確定します";
-L.drawLocal.draw.handlers.polygon.finish = {
-  title:"この範囲で登録します",
-  text:"この範囲で登録"
-};
-L.drawLocal.draw.toolbar.undo = {
-  title:"直前の点を削除",
-  text:"1つ戻る"
-};
-L.drawLocal.draw.toolbar.cancel = {
-  title:"描画を中止します",
-  text:"キャンセル"
-};
+const cityBoundaryLayers = {};
+let cityBoundaryDataReady = false;
+let selectedCityNameLabelMarkers = [];
+let highlightedCityLayer = null;
+let keepHighlightOnNextMapClick = false;
+let cityCandidateSelectHandler = null;
 
-const drawControl = new L.Control.Draw({
-  position:"topleft",
-  draw:{
-    polygon:true,
-    rectangle:false,
-    circle:false,
-    marker:false,
-    polyline:false,
-    circlemarker:false
-  },
-  edit:{
-    featureGroup:drawnItems,
-    edit:false,
-    remove:false
-  }
-});
+let highlightedAreaLayer = null;
+let highlightedAreaId = null;
+let keepAreaHighlightOnNextMapClick = false;
 
+let areaDetailCurrentLayer = null;
+let areaPopupDragging = false;
+let areaPopupDragStartX = 0;
+let areaPopupDragStartY = 0;
+let areaPopupStartLeft = 0;
+let areaPopupStartTop = 0;
 
 document.getElementById("mobileDrawStart").style.display = "none";
 document.getElementById("mobileDrawPanel").style.display = "none";
@@ -1308,15 +4222,17 @@ if(IS_PARENT_PAGE){
 // =========================
 // 初期読み込み
 // =========================
-fetch("tokyo.geojson")
-  .then(res => res.json())
+getInitialBoundaryData()
   .then(data => {
 
     const filteredFeatures = IS_PARENT_PAGE
-      ? data.features
-      : data.features.filter(f =>
-          f.properties.N03_004 === CURRENT_CITY
-        );
+      ? data.features.filter(f =>
+        f.properties.N03_004 &&
+        f.properties.N03_004 !== "所属未定地"
+    　)
+    : data.features.filter(f =>
+        f.properties.N03_004 === CURRENT_CITY
+      );
 
   
     const filteredGeoJson = {
@@ -1336,6 +4252,12 @@ fetch("tokyo.geojson")
 
       onEachFeature:function(feature, layer){
 
+        const boundaryCityName = feature.properties.N03_004;
+
+        if(boundaryCityName){
+          cityBoundaryLayers[boundaryCityName] = layer;
+        }
+
         if(IS_PARENT_PAGE){
 
           layer.on("click", function(){
@@ -1344,7 +4266,26 @@ fetch("tokyo.geojson")
 
             if(!cityName) return;
 
-            
+            clearCityHighlight();
+
+            layer.setStyle({
+              color:"#ffd600",
+              weight:6
+            });
+
+            layer.on("click", keepCityHighlight);
+
+            layer.bringToFront();
+
+            highlightedCityLayer = layer;
+
+            showSelectedCityNameLabel(
+              cityName,
+              layer
+            );
+
+            keepHighlightOnNextMapClick = true;
+
             map.fitBounds(
               layer.getBounds(),
               getCityFitOptions()
@@ -1370,62 +4311,238 @@ fetch("tokyo.geojson")
 
     }).addTo(map);
 
-    map.fitBounds(boundary.getBounds(), {
-      padding:[40, 40]
-    });
+    /*
+      初期表示範囲
+      東京都の親ページでは離島を除外して計算する
+    */
+    let initialBounds = boundary.getBounds();
 
-    window.fullBounds = boundary.getBounds();
+    if(IS_PARENT_PAGE){
 
-  });
+      const mainlandBounds =
+        L.latLngBounds();
 
-fetch(
-  SCRIPT_URL +
-  "?city=" +
-  encodeURIComponent(CURRENT_CITY)
-)
-  .then(res => res.json())
-  .then(json => {
-    document.getElementById("titleBox").textContent = json.title;
-    renderAdminHistory(json.areas);
+      boundary.eachLayer(function(layer){
 
-    const planned = [];
-    const done = [];
+        const cityName =
+          layer.feature &&
+          layer.feature.properties
+            ? layer.feature.properties.N03_004
+            : "";
 
-    json.areas.forEach(row => {
-      if(!row) return;
-      if(!row["ID"]) return;
-      if(!row["種類"]) return;
-      if(!row["図形データ"]) return;
+        if(
+          cityName &&
+          !INITIAL_VIEW_EXCLUDED_CITIES.has(cityName) &&
+          typeof layer.getBounds === "function"
+        ){
+          mainlandBounds.extend(
+            layer.getBounds()
+          );
+        }
 
-      let geo;
+      });
 
-      try {
-        geo = JSON.parse(row["図形データ"]);
-      } catch(e) {
-        console.warn("図形データの読み込みをスキップしました", row["ID"], e);
-        return;
+      if(mainlandBounds.isValid()){
+        initialBounds = mainlandBounds;
       }
 
-      if(row["種類"] === "配布予定") planned.push({ geo, row });
-      if(row["種類"] === "配布済") done.push({ geo, row });
+    }
+
+    map.fitBounds(initialBounds, {
+      padding:[20, 20]
     });
 
-    planned.forEach(drawLayer);
-    done.forEach(drawLayer);
+     /*
+      「東京都を全体表示」ボタンでも
+      初期表示と同じく離島を除外する
+    */
+    window.fullBounds = initialBounds;
+    
+      cityBoundaryDataReady = true;
+
+  })
+  .catch(function(error){
+    console.error("市町村境界データの読込みに失敗しました", error);
+    showInitialLoadError(
+      "市町村境界データを読み込めませんでした。"
+    );
   });
+
+/* =========================
+   配布エリア初期表示
+========================= */
+
+/* 前回データがあれば先に表示 */
+const cachedAreaData =
+  loadAreaBrowserCache();
+
+if(cachedAreaData){
+
+  renderAreaData(
+    cachedAreaData
+  );
+
+}
+
+
+showUpdatingStatus();
+
+/* 同時にApps Scriptから最新版を取得 */
+getInitialAreaData()
+  .then(json => {
+
+    document.getElementById(
+      "titleBox"
+    ).textContent =
+      "【東京都】東京都知事リコール周知用チラシ　配布エリア共有マップ";
+
+    /* 前回表示を消して最新版へ入れ替え */
+    renderAreaData(json);
+
+    /* 次回起動用に保存 */
+    saveAreaBrowserCache(json);
+
+    areaSearchDataReady = true;
+
+    lastAreaRefreshAt = Date.now();
+
+    showUpdateComplete();
+
+  })
+  .catch(function(error){
+
+    console.error(
+      "配布エリアデータの読込みに失敗しました",
+      error
+    );
+
+  showUpdateError();
+    
+  if(cachedAreaData){
+
+    console.warn(
+      "前回取得した配布エリアを表示しています"
+    );
+
+    showInitialLoadError(
+      "最新情報を取得できませんでした。<br>" +
+      "現在は前回取得した情報を表示しています。"
+    );
+
+    return;
+  }
+
+    document.getElementById(
+      "adminHistoryContent"
+    ).textContent =
+      "データを取得できませんでした";
+
+    showInitialLoadError(
+      "配布エリアデータを読み込めませんでした。"
+    );
+
+  });
+
+
+function clearAreaLayers(){
+
+  /* 地図上の作図済みエリアを全部消す */
+  drawnItems.clearLayers();
+
+  /* ID管理データも空にする */
+  Object.keys(plannedItemsById)
+    .forEach(id => delete plannedItemsById[id]);
+
+  Object.keys(areaItemsById)
+    .forEach(id => delete areaItemsById[id]);
+
+  Object.keys(areaLayersById)
+    .forEach(id => delete areaLayersById[id]);
+}
+
+
+function renderAreaData(json){
+
+  if(
+    !json ||
+    !Array.isArray(json.areas)
+  ){
+    return;
+  }
+
+  clearAreaLayers();
+
+  renderAdminHistory(json.areas);
+
+  prepareActivityReport(json.areas);
+
+  const planned = [];
+  const done = [];
+
+  json.areas.forEach(row => {
+
+    if(!row) return;
+    if(!row["ID"]) return;
+    if(!row["種類"]) return;
+    if(!row["図形データ"]) return;
+
+    let geo;
+
+    try{
+
+      geo =
+        JSON.parse(
+          row["図形データ"]
+        );
+
+    }catch(error){
+
+      console.warn(
+        "図形データの読み込みをスキップしました",
+        row["ID"],
+        error
+      );
+
+      return;
+    }
+
+    if(row["種類"] === "配布予定"){
+      planned.push({
+        geo:geo,
+        row:row
+      });
+    }
+
+    if(row["種類"] === "配布済"){
+      done.push({
+        geo:geo,
+        row:row
+      });
+    }
+
+  });
+
+  planned.forEach(drawLayer);
+  done.forEach(drawLayer);
+}
+
 
 // =========================
 // 地図・描画
 // =========================
 function drawLayer(item){
+
   const layer = L.geoJSON(item.geo, {
-    interactive: !IS_PARENT_PAGE,
+
+    pane:"drawAreaPane",
+    interactive:true,
 
     style:{
       color:getColor(item.row["種類"]),
       fillColor:getColor(item.row["種類"]),
       fillOpacity:item.row["種類"] === "配布済" ? 0.5 : 0.35
     }
+
   }).addTo(drawnItems);
 
   const id = item.row["ID"];
@@ -1438,16 +4555,30 @@ function drawLayer(item){
     plannedItemsById[id] = item;
   }
 
-  if(!IS_PARENT_PAGE){
-    if(!IS_PARENT_PAGE){
-      layer.bindPopup(makePopupHtml(item.row, isPlanned));
+  if(IS_PARENT_PAGE){
+    layer.on("click", function(e){
 
-      layer.on("click", function(){
-        map.fitBounds(layer.getBounds(), {
-          padding:[40, 40],
-        });
+      L.DomEvent.stopPropagation(e);
+
+      handleOverlappingAreaClick(
+        id,
+        e.latlng,
+        selectParentAreaById
+      );
+    });
+
+  }else{
+
+    layer.bindPopup(
+      makePopupHtml(item.row, isPlanned)
+    );
+
+    layer.on("click", function(){
+
+      map.fitBounds(layer.getBounds(), {
+        padding:[40, 40]
       });
-    }
+    });
   }
 }
 
@@ -1656,6 +4787,548 @@ function formatDateSimple(value){
 
   return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
 }
+function isLeafletLatLng(value){
+  return (
+    value &&
+    typeof value.lat === "number" &&
+    typeof value.lng === "number"
+  );
+}
+
+function isLatLngInRing(point, ring){
+
+  let inside = false;
+
+  for(
+    let i = 0, j = ring.length - 1;
+    i < ring.length;
+    j = i++
+  ){
+
+    const current = ring[i];
+    const previous = ring[j];
+
+    const crossesLatitude =
+      (current.lat > point.lat) !==
+      (previous.lat > point.lat);
+
+    const intersectionLng =
+      (
+        (previous.lng - current.lng) *
+        (point.lat - current.lat)
+      ) /
+      (previous.lat - current.lat) +
+      current.lng;
+
+    if(
+      crossesLatitude &&
+      point.lng < intersectionLng
+    ){
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function isLatLngInPolygonShape(point, latlngs){
+
+  if(!Array.isArray(latlngs) || !latlngs.length){
+    return false;
+  }
+
+  if(isLeafletLatLng(latlngs[0])){
+    return isLatLngInRing(point, latlngs);
+  }
+
+  if(
+    Array.isArray(latlngs[0]) &&
+    isLeafletLatLng(latlngs[0][0])
+  ){
+
+    if(!isLatLngInRing(point, latlngs[0])){
+      return false;
+    }
+
+    return !latlngs
+      .slice(1)
+      .some(hole => isLatLngInRing(point, hole));
+  }
+
+  return latlngs.some(
+    polygon =>
+      isLatLngInPolygonShape(point, polygon)
+  );
+}
+
+function isLatLngInsideAreaLayer(point, areaLayer){
+
+  let isInside = false;
+
+  function inspectLayer(layer){
+
+    if(isInside) return;
+
+    if(
+      layer instanceof L.Polygon &&
+      typeof layer.getLatLngs === "function"
+    ){
+      isInside = isLatLngInPolygonShape(
+        point,
+        layer.getLatLngs()
+      );
+      return;
+    }
+
+    if(typeof layer.eachLayer === "function"){
+      layer.eachLayer(inspectLayer);
+    }
+  }
+
+  inspectLayer(areaLayer);
+  return isInside;
+}
+
+function getAreaIdsAtLatLng(latlng){
+
+  return Object.keys(areaLayersById)
+    .filter(id => {
+
+      const layer = areaLayersById[id];
+
+      return (
+        layer &&
+        isLatLngInsideAreaLayer(latlng, layer)
+      );
+    });
+}
+
+function clearAreaChoicePreview(){
+
+  if(!areaChoicePreviewActive) return;
+
+  if(IS_PARENT_PAGE){
+    closeAreaDetailPopup(false);
+    clearAreaHighlight();
+  }else{
+    closeAreaDetailPopup();
+  }
+
+  areaChoicePreviewActive = false;
+}
+
+function closeAreaChoiceOverlay(clearPreview = true){
+
+  document.getElementById(
+    "areaChoiceOverlay"
+  ).style.display = "none";
+
+  if(clearPreview){
+    clearAreaChoicePreview();
+  }
+
+  pendingAreaChoiceHandler = null;
+  pendingAreaChoiceIds = [];
+}
+
+function showAreaChoiceOverlay(areaIds, onSelect){
+
+  const overlay =
+    document.getElementById("areaChoiceOverlay");
+
+  const list =
+    document.getElementById("areaChoiceList");
+
+  list.innerHTML = "";
+  pendingAreaChoiceHandler = onSelect;
+  pendingAreaChoiceIds = areaIds.slice();
+
+  areaIds
+    .slice()
+    .sort((idA, idB) => {
+
+      const typeA =
+        areaItemsById[idA]?.row?.["種類"] || "";
+
+      const typeB =
+        areaItemsById[idB]?.row?.["種類"] || "";
+
+      if(typeA === typeB) return 0;
+      if(typeA === "配布予定") return -1;
+      if(typeB === "配布予定") return 1;
+      return typeA.localeCompare(typeB, "ja");
+    })
+    .forEach(id => {
+
+      const item = areaItemsById[id];
+      if(!item) return;
+
+      const row = item.row;
+      const type = row["種類"] || "種類未入力";
+
+      const button =
+        document.createElement("button");
+
+      button.type = "button";
+      button.className =
+        "area-choice-button " +
+        (
+          type === "配布予定"
+            ? "planned"
+            : type === "配布済"
+              ? "done"
+              : ""
+        );
+
+      const typeText =
+        document.createElement("span");
+
+      typeText.className = "area-choice-type";
+      typeText.textContent = type;
+
+      const metaText =
+        document.createElement("span");
+
+      metaText.className = "area-choice-meta";
+
+      const dateText =
+        formatDateSimple(row["実施日"]) ||
+        "未入力";
+
+      const countText =
+        row["枚数"] !== "" &&
+        row["枚数"] !== null &&
+        row["枚数"] !== undefined
+          ? row["枚数"] + "枚"
+          : "未入力";
+
+      const personText =
+        row["担当者"] !== "" &&
+        row["担当者"] !== null &&
+        row["担当者"] !== undefined
+          ? row["担当者"]
+          : "未入力";
+
+      metaText.textContent =
+        "実施日：" + dateText + "\n" +
+        "枚数：" + countText +
+        "　担当：" + personText;
+
+      button.appendChild(typeText);
+      button.appendChild(metaText);
+
+      button.addEventListener("click", function(){
+
+        const handler =
+          pendingAreaChoiceHandler;
+
+        const choiceIds =
+          pendingAreaChoiceIds.slice();
+
+        closeAreaChoiceOverlay(false);
+
+        if(handler){
+          confirmAreaChoiceSelection(
+            id,
+            choiceIds,
+            handler
+          );
+        }
+      });
+
+      list.appendChild(button);
+    });
+
+  overlay.style.display = "flex";
+}
+
+function previewAreaChoiceById(id){
+
+  const layer = areaLayersById[id];
+  const item = areaItemsById[id];
+
+  if(!layer || !item) return false;
+
+  if(IS_PARENT_PAGE){
+
+    closeAreaDetailPopup(false);
+    clearCityHighlight();
+    clearAreaHighlight();
+
+    layer.setStyle({
+      color:"#ffd600",
+      weight:6
+    });
+
+    layer.bringToFront();
+    highlightedAreaLayer = layer;
+    highlightedAreaId = id;
+
+    showAreaRelatedCityNameLabels(item.row);
+
+  }else{
+
+    closeAreaDetailPopup();
+    highlightSelectedArea(
+      layer,
+      item.row["種類"]
+    );
+  }
+
+  areaChoicePreviewActive = true;
+
+  map.fitBounds(layer.getBounds(), {
+    padding:isTouchDevice ? [95, 95] : [140, 140],
+    animate:false
+  });
+
+  return true;
+}
+
+function confirmAreaChoiceSelection(
+  id,
+  areaIds,
+  onSelect
+){
+
+  if(!previewAreaChoiceById(id)) return;
+
+  document.getElementById("confirmOverlay")
+  .classList.add("area-preview-confirm");
+
+
+
+  openConfirm(
+    "このエリアの詳細を確認しますか？",
+    function(){
+      areaChoicePreviewActive = false;
+      onSelect(id);
+    },
+    function(){
+      showAreaChoiceOverlay(areaIds, onSelect);
+    },
+    "戻る"
+  );
+}
+
+function handleOverlappingAreaClick(
+  clickedId,
+  latlng,
+  selectArea
+){
+
+  let areaIds =
+    getAreaIdsAtLatLng(latlng);
+
+  // 検索結果の黄色いエリアを押した場合は、候補も検索結果内に絞る
+  if(
+    areaSearchActive &&
+    activeAreaSearchIds.has(clickedId)
+  ){
+    areaIds = areaIds.filter(
+      id => activeAreaSearchIds.has(id)
+    );
+  }
+
+  if(!areaIds.includes(clickedId)){
+    areaIds.unshift(clickedId);
+  }
+
+  if(areaIds.length <= 1){
+    selectArea(areaIds[0]);
+    return;
+  }
+
+  showAreaChoiceOverlay(
+    areaIds,
+    selectArea
+  );
+}
+
+
+function openParentAreaDetail(row, layer){
+  if(!IS_PARENT_PAGE) return;
+
+  const popup = document.getElementById("areaDetailPopup");
+  const content = document.getElementById("areaDetailPopupContent");
+
+  areaDetailCurrentLayer = layer;
+  content.innerHTML = makeParentAreaDetailHtml(row);
+
+  popup.classList.remove("manually-moved", "popup-below");
+  popup.classList.add("screen-positioned");
+  popup.style.display = "block";
+  popup.style.visibility = "hidden";
+  popup.setAttribute("aria-hidden", "false");
+
+  positionAreaDetailPopup(layer);
+  popup.style.visibility = "visible";
+
+  map.once("moveend", function(){
+    if(areaDetailCurrentLayer === layer){
+      positionAreaDetailPopup(layer);
+    }
+  });
+}
+
+// エリア詳細ボックスの出現位置
+function positionAreaDetailPopup(layer){
+  const popup = document.getElementById("areaDetailPopup");
+
+  if(!layer || popup.style.display === "none") return;
+  if(popup.classList.contains("manually-moved")) return;
+
+  const popupWidth = popup.offsetWidth;
+  const popupHeight = popup.offsetHeight;
+  const edge = 8;
+
+  const isMobile = window.matchMedia(
+    "(max-width:600px) and (pointer:coarse)"
+  ).matches;
+
+  let left;
+  let top;
+
+  if(isMobile){
+
+    // スマホ：左右中央・上部タイトルの下
+    left = (window.innerWidth - popupWidth) / 2;
+    top = 45;
+
+  }else{
+
+    // パソコン：左から25％、上下中央より少し上
+    left =
+      window.innerWidth * 0.2 -
+      popupWidth / 2;
+
+    top =
+      window.innerHeight * 0.47 -
+      popupHeight / 2;
+  }
+
+  left = Math.max(
+    edge,
+    Math.min(
+      left,
+      window.innerWidth - popupWidth - edge
+    )
+  );
+
+  top = Math.max(
+    edge,
+    Math.min(
+      top,
+      window.innerHeight - popupHeight - edge
+    )
+  );
+
+  popup.style.left = left + "px";
+  popup.style.top = top + "px";
+  popup.classList.remove("popup-below");
+}
+
+function closeAreaDetailPopup(clearHighlight){
+  const popup = document.getElementById("areaDetailPopup");
+
+  popup.style.display = "none";
+  popup.style.visibility = "hidden";
+  popup.setAttribute("aria-hidden", "true");
+  popup.classList.remove(
+    "manually-moved",
+    "popup-below",
+    "screen-positioned"
+  );
+  areaDetailCurrentLayer = null;
+
+  if(clearHighlight !== false){
+    clearAreaHighlight();
+    clearSelectedCityNameLabel();
+  }
+}
+
+function selectParentAreaById(id, fitPadding = [60, 60]){
+
+  const layer = areaLayersById[id];
+  const item = areaItemsById[id];
+
+  if(!layer || !item) return;
+
+  clearCityHighlight();
+  clearAreaHighlight();
+
+  layer.setStyle({
+    color:"#ffd600",
+    weight:6
+  });
+
+  layer.bringToFront();
+
+  highlightedAreaLayer = layer;
+  highlightedAreaId = id;
+
+  showAreaRelatedCityNameLabels(item.row);
+
+  keepAreaHighlightOnNextMapClick = true;
+
+  map.fitBounds(layer.getBounds(), {
+    padding:fitPadding
+  });
+
+  openParentAreaDetail(item.row, layer);
+}
+
+function startAreaPopupDrag(e){
+  if(e.button !== undefined && e.button !== 0) return;
+  if(e.target.closest(".area-detail-close")) return;
+
+  const popup = document.getElementById("areaDetailPopup");
+  const handle = document.getElementById("areaDetailDragHandle");
+  const rect = popup.getBoundingClientRect();
+
+  areaPopupDragging = true;
+  areaPopupDragStartX = e.clientX;
+  areaPopupDragStartY = e.clientY;
+  areaPopupStartLeft = rect.left;
+  areaPopupStartTop = rect.top;
+
+  popup.classList.add("manually-moved");
+  handle.classList.add("dragging");
+
+  if(handle.setPointerCapture){
+    handle.setPointerCapture(e.pointerId);
+  }
+
+  e.preventDefault();
+}
+
+function moveAreaPopup(e){
+  if(!areaPopupDragging) return;
+
+  const popup = document.getElementById("areaDetailPopup");
+  const edge = 6;
+
+  let left = areaPopupStartLeft + (e.clientX - areaPopupDragStartX);
+  let top = areaPopupStartTop + (e.clientY - areaPopupDragStartY);
+
+  left = Math.max(edge, Math.min(left, window.innerWidth - popup.offsetWidth - edge));
+  top = Math.max(edge, Math.min(top, window.innerHeight - popup.offsetHeight - edge));
+
+  popup.style.left = left + "px";
+  popup.style.top = top + "px";
+  e.preventDefault();
+}
+
+function stopAreaPopupDrag(e){
+  if(!areaPopupDragging) return;
+
+  areaPopupDragging = false;
+  document.getElementById("areaDetailDragHandle").classList.remove("dragging");
+
+  if(e && e.preventDefault){
+    e.preventDefault();
+  }
+}
 
 function openPopupAbove(layer){
   const bounds = layer.getBounds();
@@ -1665,6 +5338,21 @@ function openPopupAbove(layer){
   );
 
   layer.openPopup(topCenter);
+}
+
+function makeCorrectionPendingHtml(row){
+
+  const hasRequest =
+    String(row["修正依頼日時"] || "").trim() !== "";
+
+  const hasCompleted =
+    String(row["管理者修正日時"] || "").trim() !== "";
+
+  if(hasRequest && !hasCompleted){
+    return '<span class="area-detail-request-pending">※修正依頼中</span>';
+  }
+
+  return "";
 }
 
 function makePopupHtml(row, isPlanned){
@@ -1716,7 +5404,7 @@ function makePopupHtml(row, isPlanned){
   html += `
     <hr style="margin:10px 0; border:none; border-top:1px dashed #ccc;">
     <div style="font-size:12px; color:#666;">
-      管理者用ID：${row["ID"]}<br>
+      エリアID：${row["ID"]}<br>
       <button class="popup-admin-btn"
       onclick="copyAreaId('${row["ID"]}')"
       style="margin-top:4px; font-size:11px;">IDをコピー</button>
@@ -1726,13 +5414,68 @@ function makePopupHtml(row, isPlanned){
 }
 
 function copyAreaId(id){
-  navigator.clipboard.writeText(id)
-    .then(function(){
-      alert("IDをコピーしました");
-    })
-    .catch(function(){
-      prompt("このIDをコピーしてください", id);
-    });
+
+  const text = String(id || "");
+
+  if(!text){
+    alert("コピーするIDがありません");
+    return;
+  }
+
+  // 通常のコピー方法
+  if(navigator.clipboard && window.isSecureContext){
+
+    navigator.clipboard.writeText(text)
+      .then(function(){
+        alert("IDをコピーしました");
+      })
+      .catch(function(){
+        copyAreaIdFallback(text);
+      });
+
+    return;
+  }
+
+  // 通常のコピーが使えないブラウザ
+  copyAreaIdFallback(text);
+}
+
+
+function copyAreaIdFallback(text){
+
+  const textarea = document.createElement("textarea");
+
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+
+  textarea.style.position = "fixed";
+  textarea.style.left = "0";
+  textarea.style.top = "0";
+  textarea.style.width = "1px";
+  textarea.style.height = "1px";
+  textarea.style.opacity = "0.01";
+
+  document.body.appendChild(textarea);
+
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  let copied = false;
+
+  try{
+    copied = document.execCommand("copy");
+  }catch(error){
+    copied = false;
+  }
+
+  document.body.removeChild(textarea);
+
+  if(copied){
+    alert("IDをコピーしました");
+  }else{
+    prompt("このIDをコピーしてください", text);
+  }
 }
 
 function renderAdminHistory(areas){
@@ -1962,8 +5705,34 @@ function sendRequestToSheet(id, pass, requestText){
 // フォーム
 // =========================
 function setupDateSelects(){
-  const monthSelects = ["formMonth", "doneMonth", "requestMonth"].map(id => document.getElementById(id));
-  const daySelects = ["formDay", "doneDay", "requestDay"].map(id => document.getElementById(id));
+  const monthSelects = [
+    "formMonth",
+    "doneMonth",
+    "requestMonth",
+    "areaSearchStartMonth",
+    "areaSearchEndMonth"
+  ].map(id => document.getElementById(id));
+
+  const daySelects = [
+    "formDay",
+    "doneDay",
+    "requestDay",
+    "areaSearchStartDay",
+    "areaSearchEndDay"
+  ].map(id => document.getElementById(id));
+
+  const searchYearSelects = [
+    "areaSearchStartYear",
+    "areaSearchEndYear"
+  ].map(id => document.getElementById(id));
+
+  const currentYear = new Date().getFullYear();
+
+  for(let year = currentYear - 5; year <= currentYear + 5; year++){
+    searchYearSelects.forEach(select => {
+      select.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+  }
 
   for(let i = 1; i <= 12; i++){
     monthSelects.forEach(select => {
@@ -1979,6 +5748,110 @@ function setupDateSelects(){
 }
 
 setupDateSelects();
+
+function setupAreaSearchCalendars(){
+
+  const currentYear = new Date().getFullYear();
+
+  const settings = [
+    {
+      prefix:"areaSearchStart",
+      calendarId:"areaSearchStartCalendar"
+    },
+    {
+      prefix:"areaSearchEnd",
+      calendarId:"areaSearchEndCalendar"
+    }
+  ];
+
+  settings.forEach(setting => {
+
+    const calendar =
+      document.getElementById(setting.calendarId);
+
+    /* 年の選択欄と同じく、現在年の前後5年まで */
+    calendar.min = (currentYear - 5) + "-01-01";
+    calendar.max = (currentYear + 5) + "-12-31";
+
+    /* カレンダーで選んだ日付を年・月・日へ反映 */
+    calendar.addEventListener("change", function(){
+
+      if(!this.value){
+        return;
+      }
+
+      const parts = this.value.split("-");
+
+      document.getElementById(
+        setting.prefix + "Year"
+      ).value = String(Number(parts[0]));
+
+      document.getElementById(
+        setting.prefix + "Month"
+      ).value = String(Number(parts[1]));
+
+      document.getElementById(
+        setting.prefix + "Day"
+      ).value = String(Number(parts[2]));
+
+      document.getElementById(
+        "areaSearchError"
+      ).textContent = "";
+    });
+
+    /*
+      年・月・日を従来どおり選んだ場合も、
+      カレンダー側の日付を合わせる
+    */
+    ["Year", "Month", "Day"].forEach(part => {
+
+      document.getElementById(
+        setting.prefix + part
+      ).addEventListener("change", function(){
+
+        const year = document.getElementById(
+          setting.prefix + "Year"
+        ).value;
+
+        const month = document.getElementById(
+          setting.prefix + "Month"
+        ).value;
+
+        const day = document.getElementById(
+          setting.prefix + "Day"
+        ).value;
+
+        if(!year || !month || !day){
+          calendar.value = "";
+          return;
+        }
+
+        const date = new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day)
+        );
+
+        const isValid =
+          date.getFullYear() === Number(year) &&
+          date.getMonth() === Number(month) - 1 &&
+          date.getDate() === Number(day);
+
+        if(!isValid){
+          calendar.value = "";
+          return;
+        }
+
+        calendar.value =
+          String(year).padStart(4, "0") + "-" +
+          String(month).padStart(2, "0") + "-" +
+          String(day).padStart(2, "0");
+      });
+    });
+  });
+}
+
+setupAreaSearchCalendars();
 
 document.getElementById("formType").addEventListener("change", function(){
   document.getElementById("plannedDeleteNotice").style.display =
@@ -2180,7 +6053,8 @@ function submitContactForm(){
         message:message,
         name:document.getElementById("contactName").value,
         email:document.getElementById("contactEmail").value,
-        note:document.getElementById("contactNote").value
+        note:document.getElementById("contactNote").value,
+        city:CURRENT_CITY || "東京都"
       })
     })
     .then(res => res.json())
@@ -2206,22 +6080,49 @@ function cancelContactForm(){
 // 検索・表示補助
 // =========================
 function resetView(){
+
+  clearCityHighlight();
+
+  clearAreaHighlight();
+  closeAreaDetailPopup(false);
+  map.closePopup();
+
+  // 「県を全体示」の時の大きさ設定
+  //　↓数字を小さくすると表示が大きくなる（余白の大きさを指定してる）
   if(window.fullBounds){
     map.fitBounds(window.fullBounds, {
-      padding:[30, 30]
+        padding:[20, 20]
     });
   }
 }
 
-function openConfirm(message, callback){
+function openConfirm(
+  message,
+  callback,
+  cancelCallback = null,
+  cancelLabel = "キャンセル"
+){
   confirmCallback = callback;
+  confirmCancelCallback = cancelCallback;
   document.getElementById("confirmMessage").innerHTML = message;
+  document.getElementById("confirmCancelButton").textContent =
+    cancelLabel;
   document.getElementById("confirmOverlay").style.display = "flex";
 }
 
 function closeConfirm(){
-  document.getElementById("confirmOverlay").style.display = "none";
+
+  const overlay =
+    document.getElementById("confirmOverlay");
+
+  overlay.style.display = "none";
+  overlay.classList.remove("area-preview-confirm");
+
   confirmCallback = null;
+  confirmCancelCallback = null;
+
+  document.getElementById("confirmCancelButton").textContent =
+    "キャンセル";
 }
 
 function moveToSelectedCity(){
@@ -2235,32 +6136,884 @@ function cancelCityMove(){
   document.getElementById("cityMovePanel").style.display = "none";
 }
 
-function searchAreaById(){
-  const keyword = document.getElementById("idSearchInput").value.trim();
-  const countBox = document.getElementById("idSearchResultCount");
+function keepCityHighlight(){
 
-  if(!keyword){
-    alert("IDを入力してください");
-    countBox.textContent = "";
-    return;
-  }
+  keepHighlightOnNextMapClick = true;
+}
 
-  const matchedIds = Object.keys(areaLayersById).filter(id => id.includes(keyword));
-  countBox.textContent = matchedIds.length + "件";
+function clearSelectedCityNameLabel(){
 
-  if(matchedIds.length === 0){
-    alert("該当するIDのエリアが見つかりませんでした");
-    return;
-  }
-
-  const layer = areaLayersById[matchedIds[0]];
-
-  map.fitBounds(layer.getBounds(), {
-    padding:[40, 40],
+  selectedCityNameLabelMarkers.forEach(marker => {
+    if(map.hasLayer(marker)){
+      map.removeLayer(marker);
+    }
   });
 
-  openPopupAbove(layer);
+  selectedCityNameLabelMarkers = [];
 }
+
+function addSelectedCityNameLabel(cityName, layer){
+
+  if(!cityName || !layer) return;
+
+  const labelElement =
+    document.createElement("span");
+
+  labelElement.className =
+    "city-name-label-text main-city";
+
+  labelElement.textContent = cityName;
+
+  const marker = L.marker(
+    layer.getBounds().getCenter(),
+    {
+      pane:"cityLabelPane",
+      interactive:false,
+      keyboard:false,
+      icon:L.divIcon({
+        className:"city-name-label-icon",
+        html:labelElement.outerHTML,
+        iconSize:[0, 0],
+        iconAnchor:[0, 0]
+      })
+    }
+  ).addTo(map);
+
+  selectedCityNameLabelMarkers.push(marker);
+}
+
+function showSelectedCityNameLabel(cityName, layer){
+
+  clearSelectedCityNameLabel();
+  addSelectedCityNameLabel(cityName, layer);
+}
+
+function showAreaRelatedCityNameLabels(row){
+
+  clearSelectedCityNameLabel();
+
+  if(!row) return;
+
+  const cityNames = [];
+
+  String(row["表示市町村"] || "")
+    .split("|")
+    .map(name => name.trim())
+    .filter(Boolean)
+    .forEach(name => cityNames.push(name));
+
+  const primaryCity =
+    String(row["市町村"] || "").trim();
+
+  if(primaryCity){
+    cityNames.push(primaryCity);
+  }
+
+  Array.from(new Set(cityNames))
+    .forEach(cityName => {
+      addSelectedCityNameLabel(
+        cityName,
+        cityBoundaryLayers[cityName]
+      );
+    });
+}
+
+function clearCityHighlight(){
+
+  clearSelectedCityNameLabel();
+
+  if(!highlightedCityLayer) return;
+
+  highlightedCityLayer.off(
+    "click",
+    keepCityHighlight
+  );
+
+  highlightedCityLayer.setStyle({
+    color:"#000",
+    weight:2
+  });
+
+  highlightedCityLayer = null;
+}
+
+function closeCityCandidateOverlay(){
+  document.getElementById(
+    "cityCandidateOverlay"
+  ).style.display = "none";
+
+  cityCandidateSelectHandler = null;
+}
+
+function showCityCandidateOverlay(
+  candidates,
+  onSelect = showCitySearchResult
+){
+
+  const overlay =
+    document.getElementById("cityCandidateOverlay");
+
+  const list =
+    document.getElementById("cityCandidateList");
+
+  list.innerHTML = "";
+  cityCandidateSelectHandler = onSelect;
+
+  candidates
+    .slice()
+    .sort((a, b) => a.localeCompare(b, "ja"))
+    .forEach(cityName => {
+
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.className = "city-candidate-button";
+      button.textContent = cityName;
+
+      button.addEventListener("click", function(){
+        const handler = cityCandidateSelectHandler;
+        closeCityCandidateOverlay();
+        if(handler){
+          handler(cityName);
+        }
+      });
+
+      list.appendChild(button);
+    });
+
+  overlay.style.display = "flex";
+}
+
+function showCitySearchResult(cityName){
+
+  clearCityHighlight();
+
+  const layer = cityBoundaryLayers[cityName];
+
+  if(!layer){
+    alert("該当する市町村が見つかりませんでした");
+    return;
+  }
+
+  layer.setStyle({
+    color:"#ffd600",
+    weight:6
+  });
+
+  layer.on("click", keepCityHighlight);
+  layer.bringToFront();
+
+  highlightedCityLayer = layer;
+
+  showSelectedCityNameLabel(
+    cityName,
+    layer
+  );
+
+  document.getElementById(
+    "citySearchInput"
+  ).value = cityName;
+
+  map.fitBounds(
+    layer.getBounds(),
+    getCityFitOptions()
+  );
+}
+
+
+function searchCity(){
+
+  const input = document.getElementById("citySearchInput");
+  const keyword = input.value.trim();
+
+  if(!keyword){
+    alert("市町村名を入力してください");
+    input.focus();
+    return;
+  }
+
+  const cityNames = Object.keys(cityBoundaryLayers);
+
+  let matchedCityName =
+    cityNames.find(name => name === keyword);
+
+  if(!matchedCityName){
+
+    const candidates =
+      cityNames.filter(name => name.includes(keyword));
+
+    if(candidates.length === 1){
+
+      matchedCityName = candidates[0];
+
+    }else if(candidates.length > 1){
+      showCityCandidateOverlay(candidates);
+      return;
+    }
+  }
+
+  if(!matchedCityName){
+    alert("該当する市町村が見つかりませんでした");
+    return;
+  }
+
+  showCitySearchResult(matchedCityName);
+}
+
+function applyAreaRestingStyle(id){
+
+  const layer = areaLayersById[id];
+  const item = areaItemsById[id];
+
+  if(!layer || !item) return;
+
+  const type = item.row["種類"];
+  const isSearchMatch =
+    areaSearchActive && activeAreaSearchIds.has(id);
+
+  layer.setStyle({
+    color:isSearchMatch ? "#ffd600" : getColor(type),
+    fillColor:getColor(type),
+    weight:isSearchMatch ? 6 : 3,
+    fillOpacity:type === "配布済" ? 0.5 : 0.35
+  });
+
+  if(isSearchMatch){
+    layer.bringToFront();
+  }
+}
+
+function clearAreaHighlight(){
+
+  if(!highlightedAreaLayer) return;
+
+  applyAreaRestingStyle(highlightedAreaId);
+
+  highlightedAreaLayer = null;
+  highlightedAreaId = null;
+}
+
+
+function makeParentAreaDetailHtml(row){
+
+  return `
+    <div class="popup-main-info popup-info-grid">
+
+      <div class="popup-info-item">
+        市町村：${row["市町村"] || ""}
+      </div>
+
+      <div class="popup-info-item">
+        種類：${row["種類"] || ""}
+      </div>
+
+      <div class="popup-info-item">
+        実施日：${formatDateSimple(row["実施日"])}
+      </div>
+
+      <div class="popup-info-item">
+        担当：${row["担当者"] || ""}
+      </div>
+
+      <div class="popup-info-item">
+        枚数：${row["枚数"] || ""}
+      </div>
+
+      <div class="popup-info-item">
+        備考：${row["備考"] || ""}
+      </div>
+
+    </div>
+
+      <div style="
+        margin-top:10px;
+        font-size:13px;
+        line-height:1.5;
+        color:#666;
+       ">
+        ※作図済みエリアの修正・削除依頼は、各市町村ページにて
+      </div>
+
+    <div class="area-detail-action-row" style="
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    ">
+      <button
+        type="button"
+        class="popup-admin-btn"
+        onclick="goToAreaCity('${row["市町村"] || ""}', '${row["ID"] || ""}')"
+        style="font-weight:bold;"
+      >
+        ${row["市町村"] || "市町村"}ページへ移動
+      </button>
+
+      ${makeCorrectionPendingHtml(row)}
+    </div>
+
+    <hr style="
+      margin:10px 0;
+      border:none;
+      border-top:1px dashed #ccc;
+    ">
+
+    <div style="font-size:12px; color:#666;">
+      エリアID：${row["ID"] || ""}<br>
+
+      <button
+        type="button"
+        class="popup-admin-btn"
+        onclick="copyAreaId('${row["ID"] || ""}')"
+        style="
+          margin-top:5px;
+          font-size:11px;
+        "
+      >
+        IDをコピー
+      </button>
+    </div>
+  `;
+}
+
+function goToAreaCity(cityName, areaId){
+
+  if(!cityName){
+    alert("市町村情報が登録されていません");
+    return;
+  }
+
+  // 移動先の市ページで同じエリアを1回だけ復元する
+  try{
+
+    sessionStorage.setItem(
+      INDEX_SELECTED_AREA_KEY,
+      JSON.stringify({
+        id:String(areaId || ""),
+        city:String(cityName),
+        savedAt:Date.now()
+      })
+    );
+
+  }catch(error){
+    // 一時保存できなくても、市ページへの移動自体は止めない
+    console.warn("選択エリアを一時保存できませんでした", error);
+  }
+
+  location.href =
+    "map.html?city=" +
+    encodeURIComponent(cityName);
+}
+
+function getAreaSearchPersonMode(){
+  const checked = document.querySelector(
+    'input[name="areaSearchPersonMode"]:checked'
+  );
+  return checked ? checked.value : "select";
+}
+
+function updateAreaSearchPersonMode(){
+  const isManual = getAreaSearchPersonMode() === "manual";
+
+  document.getElementById("areaSearchPersonSelect").style.display =
+    isManual ? "none" : "block";
+
+  document.getElementById("areaSearchPersonManual").style.display =
+    isManual ? "block" : "none";
+}
+
+function refreshAreaSearchPersonOptions(){
+  const select = document.getElementById("areaSearchPersonSelect");
+  const previousValue = select.value;
+
+  const people = Array.from(
+    new Set(
+      Object.values(areaItemsById)
+        .map(item => String(item?.row?.["担当者"] || "").trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, "ja"));
+
+  select.innerHTML = '<option value="">指定しない</option>';
+
+  people.forEach(person => {
+    const option = document.createElement("option");
+    option.value = person;
+    option.textContent = person;
+    select.appendChild(option);
+  });
+
+  if(people.includes(previousValue)){
+    select.value = previousValue;
+  }
+}
+
+function openAreaSearchModal(){
+  if(!areaSearchDataReady || !cityBoundaryDataReady){
+    alert("配布エリアデータを読み込み中です。少し待ってからもう一度お試しください");
+    return;
+  }
+
+  refreshAreaSearchPersonOptions();
+  updateAreaSearchPersonMode();
+  document.getElementById("areaSearchError").textContent = "";
+  document.getElementById("areaSearchModal").style.display = "flex";
+}
+
+function closeAreaSearchModal(){
+  document.getElementById("areaSearchModal").style.display = "none";
+  document.getElementById("areaSearchError").textContent = "";
+}
+
+function readAreaSearchDate(prefix, label){
+  const year = document.getElementById(prefix + "Year").value;
+  const month = document.getElementById(prefix + "Month").value;
+  const day = document.getElementById(prefix + "Day").value;
+  const hasAnyValue = year || month || day;
+
+  if(!hasAnyValue){
+    return { ok:true, value:null };
+  }
+
+  if(!year || !month || !day){
+    return {
+      ok:false,
+      message:label + "は年・月・日をすべて選択してください"
+    };
+  }
+
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day)
+  );
+
+  if(
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() !== Number(month) - 1 ||
+    date.getDate() !== Number(day)
+  ){
+    return { ok:false, message:label + "が正しくありません" };
+  }
+
+  return {
+    ok:true,
+    value:Number(year) * 10000 + Number(month) * 100 + Number(day)
+  };
+}
+
+function getAreaDateKey(value){
+  if(!value) return null;
+
+  const text = String(value).trim();
+
+  // Apps Scriptから届くISO日時は、画面表示と同じ端末の現地日付で判定する
+  if(text.includes("T")){
+    const date = new Date(value);
+    if(isNaN(date)) return null;
+
+    return date.getFullYear() * 10000 +
+      (date.getMonth() + 1) * 100 +
+      date.getDate();
+  }
+
+  const match = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+
+  if(match){
+    return Number(match[1]) * 10000 +
+      Number(match[2]) * 100 +
+      Number(match[3]);
+  }
+
+  const date = new Date(value);
+  if(isNaN(date)) return null;
+
+  return date.getFullYear() * 10000 +
+    (date.getMonth() + 1) * 100 +
+    date.getDate();
+}
+
+function getAreaCountNumber(value){
+  if(value === "" || value === null || value === undefined){
+    return null;
+  }
+
+  const number = Number(String(value).replace(/,/g, "").trim());
+  return Number.isFinite(number) ? number : null;
+}
+
+function getAreaSearchCityNames(row){
+  const names = [];
+
+  String(row["表示市町村"] || "")
+    .split("|")
+    .map(name => name.trim())
+    .filter(Boolean)
+    .forEach(name => names.push(name));
+
+  const primaryCity = String(row["市町村"] || "").trim();
+  if(primaryCity){
+    names.push(primaryCity);
+  }
+
+  return Array.from(new Set(names));
+}
+
+function getAvailableAreaSearchCities(){
+  const boundaryCities = Object.keys(cityBoundaryLayers);
+  if(boundaryCities.length){
+    return boundaryCities;
+  }
+
+  return Array.from(
+    new Set(
+      Object.values(areaItemsById)
+        .flatMap(item => getAreaSearchCityNames(item.row))
+    )
+  );
+}
+
+function resolveAreaSearchCity(cityInput){
+  if(!cityInput) return { status:"empty", city:"" };
+
+  const cityNames = getAvailableAreaSearchCities();
+  const exact = cityNames.find(name => name === cityInput);
+
+  if(exact){
+    return { status:"resolved", city:exact };
+  }
+
+  const candidates = cityNames.filter(name => name.includes(cityInput));
+
+  if(candidates.length === 1){
+    return { status:"resolved", city:candidates[0] };
+  }
+
+  if(candidates.length > 1){
+    return { status:"multiple", candidates };
+  }
+
+  return { status:"missing", city:"" };
+}
+
+function restoreAreaSearchStyles(){
+  const previousIds = Array.from(activeAreaSearchIds);
+
+  areaSearchActive = false;
+  activeAreaSearchIds = new Set();
+
+  previousIds.forEach(applyAreaRestingStyle);
+}
+
+function showAreaSearchResultPanel(count){
+  document.getElementById("areaSearchPanel").classList.add("has-result");
+  document.getElementById("areaSearchOpenButton").style.display = "none";
+  document.getElementById("areaSearchResultSummary").style.display = "flex";
+  document.getElementById("areaSearchResultCount").textContent =
+    "検索結果：" + count + "件";
+}
+
+function getAreaSearchFitPadding(){
+
+  const isMobile = window.matchMedia(
+    "(max-width:600px) and (pointer:coarse)"
+  ).matches;
+
+  return isMobile
+    ? [105, 105]
+    : [60, 60];
+}
+
+function applyAreaSearch(){
+  const errorBox = document.getElementById("areaSearchError");
+  errorBox.textContent = "";
+
+  const cityInput = document.getElementById("areaSearchCity").value.trim();
+  const cityResult = resolveAreaSearchCity(cityInput);
+
+  if(cityResult.status === "multiple"){
+    showCityCandidateOverlay(
+      cityResult.candidates,
+      function(cityName){
+        document.getElementById("areaSearchCity").value = cityName;
+        applyAreaSearch();
+      }
+    );
+    return;
+  }
+
+  if(cityResult.status === "missing"){
+    errorBox.textContent = "※該当する市町村が見つかりませんでした";
+    return;
+  }
+
+  const city = cityResult.city;
+  if(city){
+    document.getElementById("areaSearchCity").value = city;
+  }
+
+  const startDate = readAreaSearchDate(
+    "areaSearchStart",
+    "開始日"
+  );
+  const endDate = readAreaSearchDate(
+    "areaSearchEnd",
+    "終了日"
+  );
+
+  if(!startDate.ok || !endDate.ok){
+    errorBox.textContent = "※" + (
+      !startDate.ok ? startDate.message : endDate.message
+    );
+    return;
+  }
+
+  if(
+    startDate.value !== null &&
+    endDate.value !== null &&
+    startDate.value > endDate.value
+  ){
+    errorBox.textContent = "※実施日の開始日と終了日を確認してください";
+    return;
+  }
+
+  const type = document.getElementById("areaSearchType").value;
+  const personMode = getAreaSearchPersonMode();
+  const person = (
+    personMode === "manual"
+      ? document.getElementById("areaSearchPersonManual").value
+      : document.getElementById("areaSearchPersonSelect").value
+  ).trim();
+  const keyword = document.getElementById("areaSearchKeyword").value.trim();
+  const idKeyword = document.getElementById("areaSearchId").value.trim();
+  const minCountText = document.getElementById("areaSearchMinCount").value;
+  const maxCountText = document.getElementById("areaSearchMaxCount").value;
+  const minCount = minCountText === "" ? null : Number(minCountText);
+  const maxCount = maxCountText === "" ? null : Number(maxCountText);
+
+  if(
+    minCount !== null &&
+    maxCount !== null &&
+    minCount > maxCount
+  ){
+    errorBox.textContent = "※枚数の最小値と最大値を確認してください";
+    return;
+  }
+
+  const hasCondition = Boolean(
+    city || type || person || keyword || idKeyword ||
+    startDate.value !== null || endDate.value !== null ||
+    minCount !== null || maxCount !== null
+  );
+
+  if(!hasCondition){
+    errorBox.textContent = "※検索条件を1つ以上入力してください";
+    return;
+  }
+
+  const matchedIds = Object.keys(areaItemsById).filter(id => {
+    const row = areaItemsById[id].row;
+
+    if(city && !getAreaSearchCityNames(row).includes(city)) return false;
+    if(type && String(row["種類"] || "") !== type) return false;
+    
+      /* 担当者検索
+    選択時は完全一致、手入力時は部分一致 */
+  if(person){
+
+    const areaPerson =
+      String(row["担当者"] || "").trim();
+
+    if(personMode === "manual"){
+
+      if(!areaPerson.includes(person)){
+        return false;
+      }
+
+    }else{
+
+      if(areaPerson !== person){
+        return false;
+      }
+    }
+  }
+
+
+  /* キーワード検索
+    市町村・種類・実施日・担当者・枚数・備考・IDを部分一致で検索 */
+  if(keyword){
+
+    const normalizedKeyword =
+      keyword.toLocaleLowerCase("ja");
+
+    const searchTarget = [
+      row["市町村"],
+      row["表示市町村"],
+      row["種類"],
+      formatDateSimple(row["実施日"]),
+      row["実施日"],
+      row["担当者"],
+      row["枚数"],
+      row["備考"],
+      row["ID"]
+    ]
+    .map(value =>
+      String(value || "").toLocaleLowerCase("ja")
+    )
+    .join("\n");
+
+    if(!searchTarget.includes(normalizedKeyword)){
+      return false;
+    }
+  }
+
+    if(idKeyword && !String(row["ID"] || "").includes(idKeyword)) return false;
+
+    if(startDate.value !== null || endDate.value !== null){
+      const areaDate = getAreaDateKey(row["実施日"]);
+      if(areaDate === null) return false;
+      if(startDate.value !== null && areaDate < startDate.value) return false;
+      if(endDate.value !== null && areaDate > endDate.value) return false;
+    }
+
+    if(minCount !== null || maxCount !== null){
+      const areaCount = getAreaCountNumber(row["枚数"]);
+      if(areaCount === null) return false;
+      if(minCount !== null && areaCount < minCount) return false;
+      if(maxCount !== null && areaCount > maxCount) return false;
+    }
+
+    return true;
+  });
+
+  /* 検索結果が0件なら、検索画面の上部に案内を表示 */
+  if(matchedIds.length === 0){
+
+    errorBox.textContent =
+      "※検索条件に一致するエリアは見つかりませんでした。条件を変更してください。";
+
+    /* スクロールされていても案内が見えるように一番上へ戻す */
+    document.getElementById("areaSearchModal").scrollTop = 0;
+    document.querySelector(
+      "#areaSearchModal .area-search-modal-box"
+    ).scrollTop = 0;
+
+    return;
+  }
+
+  clearAreaHighlight();
+  closeAreaDetailPopup(false);
+  clearCityHighlight();
+  restoreAreaSearchStyles();
+
+  areaSearchActive = true;
+  activeAreaSearchIds = new Set(matchedIds);
+  matchedIds.forEach(applyAreaRestingStyle);
+
+  closeAreaSearchModal();
+  showAreaSearchResultPanel(matchedIds.length);
+
+  /* 検索結果が1件なら、そのままエリア詳細を表示 */
+  if(matchedIds.length === 1){
+    selectParentAreaById(
+      matchedIds[0],
+      getAreaSearchFitPadding()
+    );
+    return;
+  }
+
+  const resultBounds = L.latLngBounds([]);
+
+  matchedIds.forEach(id => {
+    const layer = areaLayersById[id];
+    if(layer && layer.getBounds){
+      resultBounds.extend(layer.getBounds());
+    }
+  });
+
+  if(resultBounds.isValid()){
+    map.fitBounds(resultBounds, {
+      padding:getAreaSearchFitPadding(),
+      animate:false
+    });
+  }
+}
+
+function resetAreaSearchFields(){
+  [
+    "areaSearchCity",
+    "areaSearchStartYear",
+    "areaSearchStartMonth",
+    "areaSearchStartDay",
+    "areaSearchStartCalendar",
+    "areaSearchEndYear",
+    "areaSearchEndMonth",
+    "areaSearchEndDay",
+    "areaSearchEndCalendar",
+    "areaSearchPersonSelect",
+    "areaSearchPersonManual",
+    "areaSearchMinCount",
+    "areaSearchMaxCount",
+    "areaSearchKeyword",
+    "areaSearchId"
+  ].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+
+  document.getElementById("areaSearchType").value = "";
+  document.querySelector(
+    'input[name="areaSearchPersonMode"][value="select"]'
+  ).checked = true;
+    updateAreaSearchPersonMode();
+
+  // エラー・検索結果なしの案内も消す
+  document.getElementById("areaSearchError").textContent = "";
+
+  // 検索画面の先頭へ戻す
+  const searchBox = document.querySelector(
+    "#areaSearchModal .area-search-modal-box"
+  );
+
+  if(searchBox){
+    searchBox.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
+  }
+}
+
+function clearAreaSearch(){
+  closeAreaSearchModal();
+  clearAreaHighlight();
+  closeAreaDetailPopup(false);
+  clearSelectedCityNameLabel();
+  restoreAreaSearchStyles();
+  resetAreaSearchFields();
+
+  document.getElementById("areaSearchResultSummary").style.display = "none";
+  document.getElementById("areaSearchResultCount").textContent = "";
+  document.getElementById("areaSearchOpenButton").style.display = "block";
+  document.getElementById("areaSearchPanel").classList.remove("has-result");
+}
+
+document.getElementById("areaSearchForm")
+.addEventListener("submit", function(event){
+  event.preventDefault();
+  applyAreaSearch();
+});
+
+document.querySelectorAll('input[name="areaSearchPersonMode"]')
+.forEach(radio => {
+  radio.addEventListener("change", updateAreaSearchPersonMode);
+});
+
+document.getElementById("areaSearchModal")
+.addEventListener("click", function(event){
+  if(event.target === this){
+    closeAreaSearchModal();
+  }
+});
 
 function getTapZoom(){
   return window.matchMedia("(max-width:600px)").matches ? 13 : 11;
@@ -2293,13 +7046,68 @@ map.getContainer().addEventListener("touchend", function(){
 }, { passive:true });
 
 map.on("click", function(e){
+
   if(ignoreNextClick){
-    e.originalEvent.stopPropagation();
+
+    if(e.originalEvent){
+      e.originalEvent.stopPropagation();
+    }
+
+    return;
   }
+
+  if(keepAreaHighlightOnNextMapClick){
+
+    keepAreaHighlightOnNextMapClick = false;
+    return;
+  }
+
+  if(keepHighlightOnNextMapClick){
+
+    keepHighlightOnNextMapClick = false;
+
+    clearAreaHighlight();
+    closeAreaDetailPopup(false);
+    map.closePopup();
+
+    return;
+  }
+
+  clearCityHighlight();
+  clearAreaHighlight();
+  closeAreaDetailPopup(false);
+  map.closePopup();
+});
+
+const areaDetailDragHandle = document.getElementById("areaDetailDragHandle");
+
+areaDetailDragHandle.addEventListener("pointerdown", startAreaPopupDrag);
+areaDetailDragHandle.addEventListener("pointermove", moveAreaPopup);
+areaDetailDragHandle.addEventListener("pointerup", stopAreaPopupDrag);
+areaDetailDragHandle.addEventListener("pointercancel", stopAreaPopupDrag);
+
+document.getElementById("areaDetailCloseButton")
+.addEventListener("click", function(e){
+  e.stopPropagation();
+  closeAreaDetailPopup(true);
+});
+
+window.addEventListener("resize", function(){
+  positionAreaDetailPopup(areaDetailCurrentLayer);
 });
 
 document.getElementById("cityMoveButton").addEventListener("click", moveToSelectedCity);
 document.getElementById("cityMoveCancel").addEventListener("click", cancelCityMove);
+
+document.getElementById("cityCandidateCancel")
+.addEventListener("click", closeCityCandidateOverlay);
+
+document.getElementById("cityCandidateOverlay")
+.addEventListener("click", function(e){
+  if(e.target === this){
+    closeCityCandidateOverlay();
+  }
+});
 
 document.getElementById("confirmOkButton")
 .addEventListener("click", function(){
@@ -2314,7 +7122,19 @@ document.getElementById("confirmOkButton")
 
 document.getElementById("confirmCancelButton")
 .addEventListener("click", function(){
+  const cb = confirmCancelCallback;
   closeConfirm();
+  if(cb) cb();
+});
+
+document.getElementById("areaChoiceCancel")
+.addEventListener("click", closeAreaChoiceOverlay);
+
+document.getElementById("areaChoiceOverlay")
+.addEventListener("click", function(e){
+  if(e.target === this){
+    closeAreaChoiceOverlay();
+  }
 });
 
 // =========================
@@ -2348,7 +7168,9 @@ function goParentPage(){
 
 window.convertPlannedToDone = convertPlannedToDone;
 window.copyAreaId = copyAreaId;
-window.searchAreaById = searchAreaById;
+window.openAreaSearchModal = openAreaSearchModal;
+window.closeAreaSearchModal = closeAreaSearchModal;
+window.clearAreaSearch = clearAreaSearch;
 window.resetView = resetView;
 window.goParentPage = goParentPage;
 window.toggleHistoryPanel = toggleHistoryPanel;
